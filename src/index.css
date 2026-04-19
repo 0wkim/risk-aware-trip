@@ -1,0 +1,24 @@
+/* 최신 Tailwind v4 방식의 임포트입니다 */
+@import "tailwindcss";
+
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+/* 기존 프로젝트의 강제 정렬 설정을 완전히 무력화 */
+#root {
+  all: unset !important;
+  display: block !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  background-color: #f8fafc !important;
+  text-align: left !important;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+}
