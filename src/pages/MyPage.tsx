@@ -1,226 +1,207 @@
 import React, { useState } from 'react';
-import { MapPin, Route, Clock, TrendingUp, Mail, User, LogOut, Settings, ChevronLeft, Trees, Car, Train, X, Bell } from 'lucide-react';
+import { 
+  MapPin, Route, Clock, User, LogOut, 
+  Settings, ChevronRight, Trees, Car, Search, Sun, Moon
+} from 'lucide-react';
 
-const MyPage = () => {
-  /* 탭 상태 관리 */
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'all-searches'>('profile');
-
-  /* 대시보드 데이터 */
-  const stats = [
-    { label: 'Cities', value: '24', icon: <MapPin size={16} />, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'Routes', value: '54', icon: <Route size={16} />, color: 'text-purple-500', bg: 'bg-purple-50' },
-    { label: 'Saved', value: '48h', icon: <Clock size={16} />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { label: 'Growth', value: '+32%', icon: <TrendingUp size={16} />, color: 'text-orange-500', bg: 'bg-orange-50' },
-  ];
-
-  /* 검색 기록 데이터 */
-  const allSearches = Array.from({ length: 6 }).map((_, i) => ({
-    id: i + 1,
-    from: 'Nowon',
-    to: 'Gangnam',
-    date: `Apr ${14 - i}, 2026`,
-    img: `https://picsum.photos/seed/${i + 90}/400/300`,
-    tags: ['#FASTEST', '#SAFE']
-  }));
+const MyPage = ({ onGoToMap }: { onGoToMap: () => void }) => {
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences'>('profile');
+  const [isDarkMode, setIsDarkMode] = useState(false); // 다크모드 상태
 
   return (
-    /* 화면 전체 스크롤 방지 */
-    <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-sm flex items-center justify-center p-4 font-sans overflow-hidden text-left">
+    // 다크모드 상태에 따른 배경색 전환
+    <div className={`fixed inset-0 flex items-center justify-center p-4 font-sans text-left transition-colors duration-500 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'}`}>
       
-      {/* 팝업 컨테이너 (고정 높이 설정) */}
-      <div className="w-full max-w-7xl h-[720px] bg-white rounded-[2.5rem] shadow-2xl flex overflow-hidden border border-white relative animate-in zoom-in-95 duration-500">
+      {/* 메인 컨테이너 */}
+      <div className={`w-full max-w-5xl h-[750px] rounded-[2rem] shadow-xl flex overflow-hidden border transition-all duration-500 ${
+        isDarkMode 
+        ? 'bg-[#1E293B] border-slate-700 shadow-black/20 text-slate-200' 
+        : 'bg-white border-slate-100 shadow-slate-200/50 text-slate-700'
+      }`}>
         
-        {/* 왼쪽 사이드바 (슬림화) */}
-        <aside className="w-56 flex flex-col bg-[#F8FAFC] p-6 border-r border-slate-100 shrink-0">
-          <div className="flex items-center gap-2 mb-8 px-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black shadow-lg">
-              <Route size={18} strokeWidth={2.5} />
+        {/* 사이드바 */}
+        <aside className={`w-64 border-r p-8 flex flex-col transition-colors duration-500 ${
+          isDarkMode ? 'bg-[#1E293B]/50 border-slate-700' : 'bg-slate-50/50 border-slate-100'
+        }`}>
+          <div className="flex items-center gap-3 mb-10 px-2">
+            <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white">
+              <Route size={20} />
             </div>
-            <span className="font-bold text-base tracking-tight text-slate-800 italic">My Trips</span>
+            <span className={`font-bold text-lg tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>VibeMap</span>
           </div>
           
           <nav className="flex-1 space-y-1">
-            <NavItem 
-              icon={<User size={16} />} 
-              label="My Profile" 
-              active={activeTab === 'profile' || activeTab === 'all-searches'} 
+            <SidebarItem 
+              icon={<User size={18} />} 
+              label="프로필" 
+              active={activeTab === 'profile'} 
+              isDarkMode={isDarkMode}
               onClick={() => setActiveTab('profile')} 
             />
-            <NavItem 
-              icon={<Settings size={16} />} 
-              label="Preferences" 
+            <SidebarItem 
+              icon={<Settings size={18} />} 
+              label="여행 설정" 
               active={activeTab === 'preferences'} 
+              isDarkMode={isDarkMode}
               onClick={() => setActiveTab('preferences')} 
             />
           </nav>
 
-          <button className="flex items-center gap-3 p-4 text-slate-400 hover:text-red-500 font-bold text-xs mt-auto">
-            <LogOut size={16} /> Logout
+          {/* 다크모드 토글 버튼 */}
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-2 ${
+              isDarkMode ? 'text-yellow-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? '라이트모드로' : '다크모드로'}
+          </button>
+
+          <button className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-rose-500 transition-colors text-sm font-medium">
+            <LogOut size={18} /> 로그아웃
           </button>
         </aside>
 
         {/* 메인 영역 */}
-        <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+        <main className="flex-1 flex flex-col overflow-hidden">
           
-          {/* 상단 닫기 버튼 */}
-          <button className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-50 text-slate-300 transition-all z-10">
-            <X size={20} />
-          </button>
-
-          {/* 내부 패딩 조절로 컴팩트하게 변경 */}
-          <div className="p-10 flex-1 flex flex-col overflow-hidden">
+          {/* 상단 헤더 */}
+          <header className={`px-10 py-8 flex justify-between items-center shrink-0 border-b transition-colors ${
+            isDarkMode ? 'border-slate-700' : 'border-slate-50'
+          }`}>
+            <div>
+              <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>마이페이지</h2>
+              <p className="text-sm text-slate-400 mt-0.5">내 여행 기록과 선호도를 관리하세요.</p>
+            </div>
             
-            {(activeTab === 'profile' || activeTab === 'all-searches') && (
-              <div className="flex flex-col h-full">
+            <button 
+              onClick={onGoToMap}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-md active:scale-95 ${
+                isDarkMode ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'
+              }`}
+            >
+              <Search size={16} />
+              검색하러 가기
+            </button>
+          </header>
+
+          {/* 내부 콘텐츠 */}
+          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+            {activeTab === 'profile' ? (
+              <div className="space-y-10 animate-in fade-in duration-500">
                 
-                {/* 헤더 섹션 (높이 축소) */}
-                <header className="flex items-center justify-between mb-8 shrink-0">
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-[2rem] bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
-                      <User size={36} className="text-slate-200" />
-                    </div>
-                    <div>
-                      <h1 className="text-2xl font-black text-slate-800 tracking-tight italic">Seoyoung Choi</h1>
-                      <p className="text-slate-400 text-xs font-bold">seoyoung8939@gmail.com</p>
+                <section className="flex items-center gap-6">
+                  <div className={`w-24 h-24 rounded-full border-4 shadow-md overflow-hidden transition-colors ${
+                    isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-emerald-50 border-white'
+                  }`}>
+                    <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Seoyoung" alt="avatar" />
+                  </div>
+                  <div>
+                    <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>최서영</h3>
+                    <p className="text-slate-400 font-medium text-sm">seoyoung8939@gmail.com</p>
+                    <div className="flex gap-2 mt-3">
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${isDarkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>광운대학교</span>
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${isDarkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>데이터 사이언스</span>
                     </div>
                   </div>
+                </section>
 
-                  <div className="flex gap-3">
-                    <div className="bg-slate-900 px-6 py-3 rounded-2xl text-white text-center min-w-[90px]">
-                      <p className="text-[9px] font-bold opacity-50 uppercase mb-0.5">Cities</p>
-                      <p className="text-xl font-black italic">24</p>
-                    </div>
-                    <div className="bg-indigo-50 px-6 py-3 rounded-2xl text-indigo-600 border border-indigo-100 text-center min-w-[90px]">
-                      <p className="text-[9px] font-bold opacity-60 uppercase mb-0.5">Routes</p>
-                      <p className="text-xl font-black italic">54</p>
-                    </div>
-                  </div>
-                </header>
-
-                {activeTab === 'profile' ? (
-                  <div className="flex flex-col flex-1 overflow-hidden">
-                    {/* 대시보드 그리드 */}
-                    <section className="mb-8 shrink-0">
-                      <h2 className="text-[11px] font-black text-slate-300 uppercase tracking-widest mb-4 ml-1">Dashboard</h2>
-                      <div className="grid grid-cols-4 gap-4">
-                        {stats.map((stat, i) => (
-                          <div key={i} className="bg-white p-4 rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50 transition-all group">
-                            <div className={`${stat.bg} ${stat.color} w-9 h-9 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                              {stat.icon}
-                            </div>
-                            <p className="text-lg font-black text-slate-800 italic">{stat.value}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase">{stat.label}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* 최근 검색 섹션 (여기만 개별 스크롤) */}
-                    <section className="flex-1 flex flex-col min-h-0">
-                      <div className="flex justify-between items-center mb-4 px-1 shrink-0">
-                        <h2 className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Recent Explorations</h2>
-                        <button onClick={() => setActiveTab('all-searches')} className="text-[10px] font-black text-indigo-600 tracking-widest">VIEW ALL</button>
-                      </div>
-                      
-                      <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                        {allSearches.slice(0, 2).map((item) => (
-                          <SearchCard key={item.id} item={item} />
-                        ))}
-                      </div>
-                    </section>
-                  </div>
-                ) : (
-                  /* 전체 기록 모드 (역시 내부 스크롤) */
-                  <div className="flex-1 flex flex-col min-h-0">
-                    <div className="flex items-center gap-3 mb-6 shrink-0">
-                      <button onClick={() => setActiveTab('profile')} className="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full hover:bg-slate-100 transition-all border border-slate-100">
-                          <ChevronLeft size={16} />
-                      </button>
-                      <h2 className="text-xl font-black text-slate-800 italic uppercase">All History</h2>
-                    </div>
-                    <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 gap-4 custom-scrollbar">
-                      {allSearches.map((item) => <SearchCard key={item.id} item={item} />)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 환경 설정 탭 (역시 한 화면에 고정) */}
-            {activeTab === 'preferences' && (
-              <div className="animate-in fade-in duration-500 max-w-2xl">
-                <h2 className="text-3xl font-black text-slate-800 mb-2 italic uppercase">Preferences</h2>
-                <p className="text-slate-300 font-bold text-[10px] tracking-widest mb-8 uppercase">Customize your trip</p>
-
-                <div className="space-y-6">
-                  <div className="bg-[#F8FAFC] p-8 rounded-[2.5rem] border border-slate-50">
-                    <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
-                      <Trees className="text-emerald-500" size={18} /> Atmosphere
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {['Calm', 'Lively', 'Nature', 'Modern'].map((tag) => (
-                        <button key={tag} className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${tag === 'Lively' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-300 border border-slate-100 hover:text-indigo-400'}`}>
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-[#F8FAFC] p-8 rounded-[2.5rem] border border-slate-50">
-                      <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2"><Car className="text-blue-500" size={16} /> Transport</h3>
-                      <div className="flex gap-2">
-                        <button className="flex-1 p-4 bg-white rounded-2xl border-2 border-indigo-600 text-indigo-600 font-black text-[10px]">PUBLIC</button>
-                        <button className="flex-1 p-4 bg-white rounded-2xl border-2 border-transparent text-slate-200 font-black text-[10px] opacity-50">PRIVATE</button>
-                      </div>
-                    </div>
-                    <div className="bg-[#F8FAFC] p-8 rounded-[2.5rem] border border-slate-50 flex flex-col justify-center">
-                      <h3 className="text-sm font-bold text-slate-800 mb-4 italic tracking-tight uppercase">Budget</h3>
-                      <div className="h-2 bg-slate-200 rounded-full w-full relative mb-4">
-                        <div className="absolute left-0 top-0 h-full w-2/3 bg-indigo-500 rounded-full"></div>
-                        <div className="absolute left-[66%] top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-4 border-indigo-600 rounded-full shadow-md"></div>
-                      </div>
-                      <p className="text-[10px] font-black text-indigo-600 uppercase">₩ 300,000</p>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <StatCard label="방문한 도시" value="24" color="bg-blue-500" isDarkMode={isDarkMode} />
+                  <StatCard label="탐색한 경로" value="54" color="bg-emerald-500" isDarkMode={isDarkMode} />
+                  <StatCard label="저장한 장소" value="12" color="bg-rose-500" isDarkMode={isDarkMode} />
                 </div>
+
+                <section>
+                  <div className="flex justify-between items-end mb-5">
+                    <h4 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                      <Clock size={18} className="text-slate-400" /> 최근 검색 기록
+                    </h4>
+                    <button className="text-xs text-slate-400 hover:text-slate-200 underline">전체보기</button>
+                  </div>
+                  <div className="space-y-3">
+                    <HistoryItem from="노원역" to="강남역" date="2026.04.28" isDarkMode={isDarkMode} />
+                    <HistoryItem from="성수동" to="홍대입구" date="2026.04.25" isDarkMode={isDarkMode} />
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <section>
+                  <h4 className={`font-bold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                    <Trees size={18} className="text-emerald-500" /> 선호하는 분위기
+                  </h4>
+                  <div className="flex gap-2">
+                    {['차분한', '활기찬', '자연친화적', '모던한'].map((vibe) => (
+                      <button key={vibe} className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                        vibe === '활기찬' 
+                        ? 'bg-emerald-500 border-emerald-500 text-white' 
+                        : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200'
+                      }`}>
+                        {vibe}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               </div>
             )}
           </div>
         </main>
       </div>
 
-      {/* 커스텀 스크롤바 스타일링을 위한 스타일 태그 */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: ${isDarkMode ? '#334155' : '#E2E8F0'}; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${isDarkMode ? '#475569' : '#CBD5E1'}; }
       `}</style>
     </div>
   );
 };
 
-const NavItem = ({ icon, label, active, onClick }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-3 w-full p-3 rounded-xl font-bold transition-all text-xs ${active ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:bg-slate-50'}`}>
+/* 보조 컴포넌트 (isDarkMode 프롭 추가) */
+const SidebarItem = ({ icon, label, active, onClick, isDarkMode }: any) => (
+  <button 
+    onClick={onClick} 
+    className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-sm font-semibold transition-all ${
+      active 
+      ? (isDarkMode ? 'bg-slate-800 text-emerald-400 shadow-lg' : 'bg-white text-slate-900 shadow-sm border border-slate-100') 
+      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+    }`}
+  >
     {icon} {label}
   </button>
 );
 
-const SearchCard = ({ item }: { item: any }) => (
-  <div className="bg-white rounded-3xl p-4 border border-slate-50 shadow-sm hover:border-indigo-100 hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-4 cursor-pointer group">
-    <div className="w-16 h-16 rounded-2xl bg-slate-100 overflow-hidden shrink-0">
-      <img src={item.img} alt="place" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+const StatCard = ({ label, value, color, isDarkMode }: any) => (
+  <div className={`p-5 rounded-2xl border transition-colors ${
+    isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100'
+  }`}>
+    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+    <div className="flex items-baseline gap-1">
+      <span className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{value}</span>
+      <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
     </div>
-    <div className="flex-1 min-w-0 text-left">
-      <h3 className="font-black text-slate-800 text-sm truncate italic mb-0.5">{item.from} → {item.to}</h3>
-      <p className="text-[9px] text-slate-400 font-bold mb-2 uppercase tracking-tighter">{item.date}</p>
-      <div className="flex gap-1.5">
-        {item.tags?.map((tag: string) => (
-          <span key={tag} className="text-[8px] font-black bg-slate-50 text-slate-300 px-2 py-0.5 rounded-md uppercase">{tag}</span>
-        ))}
+  </div>
+);
+
+const HistoryItem = ({ from, to, date, isDarkMode }: any) => (
+  <div className={`group p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+    isDarkMode ? 'bg-slate-800/30 border-slate-700 hover:border-emerald-500/50' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'
+  }`}>
+    <div className="flex items-center gap-4">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+        isDarkMode ? 'bg-slate-800 text-slate-500 group-hover:text-emerald-400' : 'bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500'
+      }`}>
+        <MapPin size={18} />
+      </div>
+      <div>
+        <p className={`font-bold text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{from} → {to}</p>
+        <p className="text-[11px] text-slate-500 font-medium">{date}</p>
       </div>
     </div>
+    <ChevronRight size={18} className="text-slate-500 group-hover:translate-x-1 transition-transform" />
   </div>
 );
 

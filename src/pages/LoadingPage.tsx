@@ -2,21 +2,30 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Route, CloudSun, Clock3, LoaderCircle } from 'lucide-react';
 
-const LoadingPage = () => {
+interface LoadingProps {
+  message?: string;
+  subMessage?: string;
+}
+
+const LoadingPage = ({ 
+  message = "Travel Route Analysis", 
+  subMessage = "Powered by advanced algorithms" 
+}: LoadingProps) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    // 150ms마다 5%씩 증가 (약 3초 내외로 100% 도달)
     const timer = setInterval(() => {
       setProgress((prev) => (prev >= 100 ? 100 : prev + 5));
     }, 150);
     return () => clearInterval(timer);
   }, []);
 
-  /* [수학적 계산 영역 - 절대 수정 금지]
+  /* [수학적 계산 영역]
     SVG 컨테이너 크기: 400x400
     중앙 좌표 (CX, CY): 200, 200
     선을 뻗을 거리 (Offset): 120
-    핀 아이콘 크기 (PinSize): 48 (Tailwind w-12 = 3rem = 48px)
+    핀 아이콘 크기 (PinSize): 48 (w-12 = 48px)
   */
   const CX = 200;
   const CY = 200;
@@ -31,9 +40,7 @@ const LoadingPage = () => {
     { x: CX + OFFSET, y: CY + OFFSET }, // 우하
   ];
 
-  /* 2. 핀 아이콘의 정중앙을 선 끝에 맞추기 위한 CSS 절대 위치 계산
-    기준점(50%)에서 {좌표차이 - 핀반지름} 만큼 이동해야 정중앙에 옵니다.
-  */
+  /* 2. 핀 아이콘의 정중앙을 선 끝에 맞추기 위한 CSS 절대 위치 계산 */
   const getPinStyle = (locX: number, locY: number) => {
     const adjust = PIN_SIZE / 2; // 핀 크기의 절반 (24px)
     return {
@@ -53,19 +60,19 @@ const LoadingPage = () => {
         className="w-full max-w-6xl h-[720px] bg-white rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.1)] flex items-center p-12 relative border border-white overflow-hidden"
       >
         
-        {/* 왼쪽: 애니메이션 영역 (여기가 핵심 수정 부위!) */}
+        {/* 왼쪽: 애니메이션 영역 */}
         <div className="flex-1 flex items-center justify-center relative h-full">
           
-          {/* SVG 선: (200, 200)에서 각 끝점으로 정확히 연결 */}
+          {/* SVG 점선 애니메이션 */}
           <svg width="400" height="400" viewBox="0 0 400 400" className="absolute z-10">
             {lineEnds.map((end, i) => (
               <motion.line
                 key={i}
                 x1={CX} y1={CY}
                 x2={end.x} y2={end.y}
-                stroke="#D8B4FE" // 좀 더 연한 보라색으로 변경
+                stroke="#D8B4FE" 
                 strokeWidth="2"
-                strokeDasharray="6 6" // 점선 간격 살짝 조정
+                strokeDasharray="6 6"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
                 transition={{ duration: 1.5, delay: 0.5, ease: "easeInOut" }}
@@ -73,7 +80,7 @@ const LoadingPage = () => {
             ))}
           </svg>
 
-          {/* 핀 아이콘: 계산된 getPinStyle을 적용해 정중앙 정렬 */}
+          {/* 핀 아이콘 배치 */}
           {lineEnds.map((end, i) => (
             <motion.div 
               key={i}
@@ -87,7 +94,7 @@ const LoadingPage = () => {
             </motion.div>
           ))}
 
-          {/* 중앙 로고 */}
+          {/* 중앙 로고 및 회전 링 */}
           <motion.div 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -95,22 +102,35 @@ const LoadingPage = () => {
             className="relative w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-2xl shadow-indigo-200 border-4 border-white z-30"
           >
             <Route size={44} className="text-white" strokeWidth={2.5} />
-            <LoaderCircle size={110} className="absolute text-indigo-100 opacity-40 animate-spin" style={{ animationDuration: '5s' }} strokeWidth={1} />
+            <LoaderCircle 
+              size={110} 
+              className="absolute text-indigo-100 opacity-40 animate-spin" 
+              style={{ animationDuration: '5s' }} 
+              strokeWidth={1} 
+            />
           </motion.div>
         </div>
 
-        {/* 오른쪽 정보 영역 (기존 유지) */}
+        {/* 오른쪽 정보 영역 */}
         <div className="w-[450px] h-full flex flex-col justify-center pl-12 border-l border-slate-100 shrink-0">
           <div className="mb-10">
-            <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-2 italic uppercase leading-tight">Travel Route<br/>Analysis</h1>
-            <p className="text-slate-400 font-bold text-xs tracking-widest uppercase">Powered by advanced algorithms</p>
+            {/* 전달받은 메시지 출력 */}
+            <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-2 italic uppercase leading-tight whitespace-pre-line">
+              {message}
+            </h1>
+            <p className="text-slate-400 font-bold text-xs tracking-widest uppercase">
+              {subMessage}
+            </p>
           </div>
 
           <div className="bg-[#F8FAFC] p-6 rounded-3xl border border-slate-50 flex items-center gap-4 mb-8 shadow-inner">
             <Route size={20} className="text-indigo-400 animate-pulse" />
-            <p className="text-sm font-bold text-slate-600">Checking road conditions...</p>
+            <p className="text-sm font-bold text-slate-600 italic">
+              {progress < 100 ? "AI 모델이 최적의 대안을 분석 중입니다..." : "분석이 완료되었습니다!"}
+            </p>
           </div>
 
+          {/* 프로그레스 바 */}
           <div className="mb-12">
             <div className="flex justify-between items-center mb-3 text-[11px] font-black uppercase tracking-widest">
               <span className="text-slate-300">Analysis Progress</span>
@@ -126,6 +146,7 @@ const LoadingPage = () => {
             </div>
           </div>
 
+          {/* 하단 요약 카드 */}
           <div className="grid grid-cols-3 gap-4">
             <InfoCard icon={<Route size={16} />} label="Routes" value="247" color="text-purple-500" bg="bg-purple-50" />
             <InfoCard icon={<CloudSun size={16} />} label="Weather" value="Clear" color="text-emerald-500" bg="bg-emerald-50" />
