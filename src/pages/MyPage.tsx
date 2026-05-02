@@ -1,25 +1,31 @@
 import React, { useState } from 'react';
 import { 
   MapPin, Route, Clock, User, LogOut, 
-  Settings, ChevronRight, Trees, Car, Search, Sun, Moon
+  Settings, ChevronRight, Trees, Search, Sun, Moon
 } from 'lucide-react';
 
-const MyPage = ({ onGoToMap }: { onGoToMap: () => void }) => {
+// Props 타입 정의 추가
+interface MyPageProps {
+  onGoToMap: () => void;
+  isExternalDarkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences'>('profile');
-  const [isDarkMode, setIsDarkMode] = useState(false); // 다크모드 상태
+  
+  // App.tsx에서 받아온 전역 다크모드 상태를 사용
+  const isDarkMode = isExternalDarkMode;
 
   return (
-    // 다크모드 상태에 따른 배경색 전환
     <div className={`fixed inset-0 flex items-center justify-center p-4 font-sans text-left transition-colors duration-500 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'}`}>
       
-      {/* 메인 컨테이너 */}
       <div className={`w-full max-w-5xl h-[750px] rounded-[2rem] shadow-xl flex overflow-hidden border transition-all duration-500 ${
         isDarkMode 
         ? 'bg-[#1E293B] border-slate-700 shadow-black/20 text-slate-200' 
         : 'bg-white border-slate-100 shadow-slate-200/50 text-slate-700'
       }`}>
         
-        {/* 사이드바 */}
         <aside className={`w-64 border-r p-8 flex flex-col transition-colors duration-500 ${
           isDarkMode ? 'bg-[#1E293B]/50 border-slate-700' : 'bg-slate-50/50 border-slate-100'
         }`}>
@@ -47,9 +53,9 @@ const MyPage = ({ onGoToMap }: { onGoToMap: () => void }) => {
             />
           </nav>
 
-          {/* 다크모드 토글 버튼 */}
+          {/* 전역 toggleDarkMode 함수 실행 */}
           <button 
-            onClick={() => setIsDarkMode(!isDarkMode)}
+            onClick={toggleDarkMode}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-2 ${
               isDarkMode ? 'text-yellow-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'
             }`}
@@ -63,10 +69,7 @@ const MyPage = ({ onGoToMap }: { onGoToMap: () => void }) => {
           </button>
         </aside>
 
-        {/* 메인 영역 */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          
-          {/* 상단 헤더 */}
           <header className={`px-10 py-8 flex justify-between items-center shrink-0 border-b transition-colors ${
             isDarkMode ? 'border-slate-700' : 'border-slate-50'
           }`}>
@@ -86,11 +89,9 @@ const MyPage = ({ onGoToMap }: { onGoToMap: () => void }) => {
             </button>
           </header>
 
-          {/* 내부 콘텐츠 */}
           <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
             {activeTab === 'profile' ? (
               <div className="space-y-10 animate-in fade-in duration-500">
-                
                 <section className="flex items-center gap-6">
                   <div className={`w-24 h-24 rounded-full border-4 shadow-md overflow-hidden transition-colors ${
                     isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-emerald-50 border-white'
@@ -160,7 +161,7 @@ const MyPage = ({ onGoToMap }: { onGoToMap: () => void }) => {
   );
 };
 
-/* 보조 컴포넌트 (isDarkMode 프롭 추가) */
+/* 보조 컴포넌트 */
 const SidebarItem = ({ icon, label, active, onClick, isDarkMode }: any) => (
   <button 
     onClick={onClick} 
