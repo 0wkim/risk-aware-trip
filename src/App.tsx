@@ -6,7 +6,7 @@ import SignupPage from './pages/SignupPage';
 import MainMapPage from './pages/MainMapPage';
 import ResultPage from './pages/ResultPage';
 
-// 검색 파라미터 타입 정의 추가
+// 검색 파라미터 타입 정의
 interface SearchParams {
   startPoint: string;
   destination: string;
@@ -20,7 +20,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'mainmap' | 'mypage' | 'result'>('login');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // 검색 파라미터 상태 추가
+  // 검색 파라미터 상태
   const [searchParams, setSearchParams] = useState<SearchParams>({
     startPoint: '제주공항',
     destination: '자매국수',
@@ -34,9 +34,14 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 검색 시 분석 로딩 (4초) + 파라미터 저장 로직 추가
+  // 모드 변경 함수 정의 (가독성을 위해 분리)
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => !prev);
+  };
+
+  // 검색 시 분석 로딩 (4초)
   const handleStartAnalysis = (params: SearchParams) => {
-    setSearchParams(params); // MainMapPage에서 넘어온 데이터 저장
+    setSearchParams(params);
     setIsAnalyzing(true);
     setTimeout(() => {
       setIsAnalyzing(false);
@@ -61,26 +66,27 @@ function App() {
         <MyPage 
           onGoToMap={() => setCurrentPage('mainmap')} 
           isExternalDarkMode={isDarkMode}
-          toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+          toggleDarkMode={toggleDarkMode} // 일관된 함수 사용
         />
       )}
 
       {currentPage === 'mainmap' && (
         <MainMapPage 
-          onSearch={handleStartAnalysis} // 수정된 분석 함수 전달
+          onSearch={handleStartAnalysis}
           onGoToMyPage={() => setCurrentPage('mypage')}
           isDarkMode={isDarkMode}
-          toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-          initialParams={searchParams} // 초기 데이터 전달
+          toggleDarkMode={toggleDarkMode} // 전달 확인!
+          initialParams={searchParams}
         />
       )}
 
       {currentPage === 'result' && (
         <ResultPage 
-          searchParams={searchParams} // 결과 데이터 전달
+          searchParams={searchParams}
           onBack={() => setCurrentPage('mainmap')} 
           onGoToMyPage={() => setCurrentPage('mypage')}
           isDarkMode={isDarkMode}
+          toggleDarkMode={toggleDarkMode} 
         />
       )}
     </div>
