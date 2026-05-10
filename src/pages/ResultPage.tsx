@@ -49,10 +49,10 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
   }, []);
 
   const recommendations = [
-    { id: 1, name: '카페 A', time: '25분', probability: '92%', type: 'CAFE' },
-    { id: 2, name: '레스토랑 B', time: '35분', probability: '78%', type: 'FOOD' },
-    { id: 3, name: '공원 C', time: '15분', probability: '95%', type: 'PARK' },
-    { id: 4, name: '쇼핑몰 D', time: '45분', probability: '65%', type: 'SHOP' },
+    { id: 1, name: '어반누크 성수', time: '25분', probability: '92%', type: 'CAFE' },
+    { id: 2, name: '이태리국시 성수', time: '35분', probability: '78%', type: 'FOOD' },
+    { id: 3, name: '서울숲', time: '15분', probability: '95%', type: 'PARK' },
+    { id: 4, name: 'LCDC Seoul', time: '45분', probability: '65%', type: 'SHOP' },
   ];
 
   useEffect(() => {

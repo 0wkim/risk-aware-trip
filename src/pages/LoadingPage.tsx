@@ -5,12 +5,12 @@ import { MapPin, Route, CloudSun, Clock3, LoaderCircle, Sparkles } from 'lucide-
 interface LoadingProps {
   message?: string;
   subMessage?: string;
-  isDarkMode?: boolean; // 다크모드 대응 추가
+  isDarkMode?: boolean;
 }
 
 const LoadingPage = ({ 
-  message = "Travel Route Analysis", 
-  subMessage = "Powered by advanced algorithms",
+  message = "Route\nAnalysis", 
+  subMessage = "AI 모델이 최적의 대안을 찾고 있습니다",
   isDarkMode = false 
 }: LoadingProps) => {
   const [progress, setProgress] = useState(0);
@@ -55,9 +55,7 @@ const LoadingPage = ({
         }`}
       >
         
-        {/* 왼쪽: 애니메이션 영역 */}
         <div className="flex-1 flex items-center justify-center relative h-full">
-          {/* SVG 점선 애니메이션 - 에메랄드 톤으로 변경 */}
           <svg width="400" height="400" viewBox="0 0 400 400" className="absolute z-10">
             {lineEnds.map((end, i) => (
               <motion.line
@@ -74,7 +72,6 @@ const LoadingPage = ({
             ))}
           </svg>
 
-          {/* 핀 아이콘 - MyPage 카드 스타일 적용 */}
           {lineEnds.map((end, i) => (
             <motion.div 
               key={i}
@@ -90,7 +87,6 @@ const LoadingPage = ({
             </motion.div>
           ))}
 
-          {/* 중앙 로고 - 에메랄드 포인트 */}
           <motion.div 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -107,7 +103,6 @@ const LoadingPage = ({
           </motion.div>
         </div>
 
-        {/* 오른쪽 정보 영역 - MyPage Dashboard 스타일 적용 */}
         <div className={`w-[450px] h-full flex flex-col justify-center pl-16 border-l shrink-0 text-left ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}>
           <div className="mb-10">
             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-widest mb-4 ${
@@ -115,9 +110,17 @@ const LoadingPage = ({
             }`}>
               <Sparkles size={12} /> System Processing
             </div>
+            
+            {/* 수정된 핵심 로직: \n 글자를 잘라서 실제 줄바꿈 태그로 변환 */}
             <h1 className={`text-4xl font-black tracking-tight mb-3 leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              {message}
+              {message.split(/\\n|\n/).map((line, i) => (
+                <React.Fragment key={i}>
+                  {line}
+                  {i !== message.split(/\\n|\n/).length - 1 && <br />}
+                </React.Fragment>
+              ))}
             </h1>
+            
             <p className="text-slate-400 font-bold text-sm">
               {subMessage}
             </p>
@@ -134,7 +137,6 @@ const LoadingPage = ({
             </p>
           </div>
 
-          {/* 프로그레스 바 - 에메랄드 테마 */}
           <div className="mb-12">
             <div className="flex justify-between items-center mb-4 text-[11px] font-black uppercase tracking-widest">
               <span className="text-slate-400">Analysis Progress</span>
@@ -150,7 +152,6 @@ const LoadingPage = ({
             </div>
           </div>
 
-          {/* 하단 요약 카드 - StatCard 스타일 이식 */}
           <div className="grid grid-cols-3 gap-4">
             <MiniStatCard icon={<Route size={16} />} label="Routes" value="247" isDarkMode={isDarkMode} />
             <MiniStatCard icon={<CloudSun size={16} />} label="Weather" value="Clear" isDarkMode={isDarkMode} />
@@ -162,7 +163,6 @@ const LoadingPage = ({
   );
 };
 
-/* 보조 컴포넌트: MyPage의 StatCard와 통일감 있는 디자인 */
 const MiniStatCard = ({ icon, label, value, isDarkMode }: any) => (
   <div className={`p-5 rounded-2xl border transition-all ${
     isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'

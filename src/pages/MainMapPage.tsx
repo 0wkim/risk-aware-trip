@@ -9,6 +9,37 @@ interface Props {
   initialParams: any;
 }
 
+// 1. API 키 및 구-지역 매핑 상수 정의
+const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
+
+const DISTRICT_MAPPING = [
+  { district: '강남구', areaNm: '강남역' },
+  { district: '강동구', areaNm: '천호역' },
+  { district: '강북구', areaNm: '미아사거리역' },
+  { district: '강서구', areaNm: '서울식물원·마곡나루역' },
+  { district: '관악구', areaNm: '신림역' },
+  { district: '광진구', areaNm: '건대입구역' },
+  { district: '구로구', areaNm: '신도림역' },
+  { district: '금천구', areaNm: '안양천' },
+  { district: '노원구', areaNm: '북서울꿈의숲' },
+  { district: '도봉구', areaNm: '쌍문역' },
+  { district: '동대문구', areaNm: '청량리 제기동 일대 전통시장' },
+  { district: '동작구', areaNm: '사당역' },
+  { district: '마포구', areaNm: '합정역' },
+  { district: '서대문구', areaNm: '신촌 스타광장' },
+  { district: '서초구', areaNm: '고속터미널역' },
+  { district: '성동구', areaNm: '왕십리역' },
+  { district: '성북구', areaNm: '성신여대입구역' },
+  { district: '송파구', areaNm: '잠실역' },
+  { district: '양천구', areaNm: '오목교역·목동운동장' },
+  { district: '영등포구', areaNm: '여의도' },
+  { district: '용산구', areaNm: '용산역' },
+  { district: '은평구', areaNm: '연신내역' },
+  { district: '종로구', areaNm: '광화문광장' },
+  { district: '중구', areaNm: '명동 관광특구' },
+  { district: '중랑구', areaNm: '장한평역' }
+];
+
 const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initialParams }: Props) => {
   const [startPoint, setStartPoint] = useState(initialParams.startPoint);
   const [destination, setDestination] = useState(initialParams.destination);
@@ -19,21 +50,56 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mapElement = useRef(null);
 
-  // 상단 바 혼잡도/날씨 데이터
-  const seoulStatus = [
-    { district: '강남구', congestion: '혼잡', temp: '20°C' },
-    { district: '마포구', congestion: '보통', temp: '19°C' },
-    { district: '종로구', congestion: '여유', temp: '21°C' },
-    { district: '성동구', congestion: '보통', temp: '18°C' },
-    { district: '영등포구', congestion: '혼잡', temp: '17°C' },
-    { district: '송파구', congestion: '여유', temp: '20°C' },
-  ];
-
-  // 세로 롤링 애니메이션을 위한 인덱스 상태
+  // 2. 고정 데이터 대신 API 결과를 담을 State 선언
+  const [seoulStatus, setSeoulStatus] = useState<any[]>([]);
   const [tickerIndex, setTickerIndex] = useState(0);
 
-  // 3초마다 인덱스 증가 (위로 슉 이동하는 효과)
+  // 3. 서울시 API 호출 로직
   useEffect(() => {
+    const fetchCityData = async () => {
+      try {
+        const promises = DISTRICT_MAPPING.map(async (item) => {
+          // XML 대신 JSON 형식으로 요청하여 파싱을 쉽게 합니다.
+          const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
+          const response = await fetch(url);
+          const json = await response.json();
+
+          // console.log(`[${item.district}] API 응답:`, json);
+
+          // 안전하게 데이터 추출 (API 응답 지연이나 오류 대비 Optional Chaining 사용)
+          const cityData = json?.CITYDATA;
+          const congestion = cityData?.LIVE_PPLTN_STTS?.[0]?.AREA_CONGEST_LVL || '정보없음';
+          const temp = cityData?.WEATHER_STTS?.[0]?.TEMP || '-';
+
+          // 👇 올려주신 구조에 맞춰 FCST24HOURS 배열 안에서 SKY_STTS를 꺼내옵니다.
+          const weatherStts = cityData?.WEATHER_STTS?.[0]?.FCST24HOURS?.[0]?.SKY_STTS || '알수없음';
+
+          // console.log(`${item.district}(${item.areaNm}) 하늘 상태:`, weatherStts);
+
+          // console.log(`${item.district}(${item.areaNm}) 날씨 상태:`, weatherStts);
+
+          return {
+            district: item.district,
+            congestion: congestion,
+            temp: `${temp}°C`,
+            weather: weatherStts
+          };
+        });
+
+        // 25개 구의 데이터를 병렬로 모두 받아옵니다.
+        const results = await Promise.all(promises);
+        setSeoulStatus(results);
+      } catch (error) {
+        console.error("Seoul API fetch error:", error);
+      }
+    };
+
+    fetchCityData();
+  }, []);
+
+  // 4. 롤링 애니메이션 로직 (데이터가 로드된 이후에만 동작)
+  useEffect(() => {
+    if (seoulStatus.length === 0) return;
     const timer = setInterval(() => {
       setTickerIndex((prev) => (prev + 1) % seoulStatus.length);
     }, 3000);
@@ -199,16 +265,27 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
               className="flex flex-col transition-transform duration-500 ease-in-out"
               style={{ transform: `translateY(-${tickerIndex * 56}px)` }} // 56px = h-14 의 픽셀 높이
             >
-              {seoulStatus.map((item, idx) => (
-                <div key={idx} className="h-14 w-full flex items-center justify-center gap-3 shrink-0 text-sm font-semibold">
-                  <span className="font-black text-emerald-500">{item.district}</span>
-                  <span className={`px-2 py-0.5 rounded-md text-xs text-white ${
-                    item.congestion === '혼잡' ? 'bg-rose-500' : item.congestion === '보통' ? 'bg-amber-500' : 'bg-blue-500'
-                  }`}>{item.congestion}</span>
-                  <CloudSun size={16} className="ml-3 text-slate-400" />
-                  <span>맑음 {item.temp}</span>
+              {/* 데이터 로딩 중 처리 */}
+              {seoulStatus.length === 0 ? (
+                <div className="h-14 w-full flex items-center justify-center text-sm font-semibold text-slate-400">
+                  실시간 도시 데이터를 불러오는 중입니다...
                 </div>
-              ))}
+              ) : (
+                seoulStatus.map((item, idx) => (
+                  <div key={idx} className="h-14 w-full flex items-center justify-center gap-3 shrink-0 text-sm font-semibold">
+                    <span className="font-black text-emerald-500">{item.district}</span>
+                    <span className={`px-2 py-0.5 rounded-md text-xs text-white ${
+                      item.congestion.includes('붐빔') || item.congestion.includes('혼잡') ? 'bg-rose-500' : 
+                      item.congestion.includes('보통') ? 'bg-amber-500' : 'bg-blue-500'
+                    }`}>
+                      {item.congestion}
+                    </span>
+                    <CloudSun size={16} className="ml-3 text-slate-400" />
+                    {/* API 명세서의 날씨 상태(WEATHER_STTS)와 온도(TEMP) 반영 */}
+                    <span>{item.weather} {item.temp}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

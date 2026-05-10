@@ -179,7 +179,7 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
               <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                 <Route size={24} />
               </div>
-              <span className={`font-bold text-xl tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>VibeMap</span>
+              <span className={`font-bold text-xl tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>ArriView</span>
             </div>
             
             <button 

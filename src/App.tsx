@@ -6,7 +6,6 @@ import SignupPage from './pages/SignupPage';
 import MainMapPage from './pages/MainMapPage';
 import ResultPage from './pages/ResultPage';
 
-// 검색 파라미터 타입 정의
 interface SearchParams {
   startPoint: string;
   destination: string;
@@ -20,26 +19,22 @@ function App() {
   const [currentPage, setCurrentPage] = useState<'login' | 'signup' | 'mainmap' | 'mypage' | 'result'>('login');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // 검색 파라미터 상태
   const [searchParams, setSearchParams] = useState<SearchParams>({
-    startPoint: '제주공항',
-    destination: '자매국수',
+    startPoint: '성수역 3번 출구',
+    destination: '까치화방 카페 성수점',
     maxHours: '1',
     maxMinutes: '10'
   });
 
-  // 초기 진입 로딩 (3.5초)
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 3500);
     return () => clearTimeout(timer);
   }, []);
 
-  // 모드 변경 함수 정의 (가독성을 위해 분리)
   const toggleDarkMode = () => {
     setIsDarkMode((prev) => !prev);
   };
 
-  // 검색 시 분석 로딩 (4초)
   const handleStartAnalysis = (params: SearchParams) => {
     setSearchParams(params);
     setIsAnalyzing(true);
@@ -49,8 +44,16 @@ function App() {
     }, 4000);
   };
 
-  if (isInitialLoading) return <LoadingPage message="VibeMap\nWelcome" />;
-  if (isAnalyzing) return <LoadingPage message="Route\nAnalysis" subMessage="AI 모델이 최적의 대안을 찾고 있습니다" />;
+  // 수정된 조건문: 중괄호와 백틱을 사용하여 더 명확하게 전달
+  if (isInitialLoading) return <LoadingPage message={`ArriView\nWelcome`} isDarkMode={isDarkMode} />;
+  
+  if (isAnalyzing) return (
+    <LoadingPage 
+      message={`Route\nAnalysis`} 
+      subMessage="AI 모델이 최적의 대안을 찾고 있습니다" 
+      isDarkMode={isDarkMode} 
+    />
+  );
 
   return (
     <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
@@ -66,7 +69,7 @@ function App() {
         <MyPage 
           onGoToMap={() => setCurrentPage('mainmap')} 
           isExternalDarkMode={isDarkMode}
-          toggleDarkMode={toggleDarkMode} // 일관된 함수 사용
+          toggleDarkMode={toggleDarkMode} 
         />
       )}
 
@@ -75,7 +78,7 @@ function App() {
           onSearch={handleStartAnalysis}
           onGoToMyPage={() => setCurrentPage('mypage')}
           isDarkMode={isDarkMode}
-          toggleDarkMode={toggleDarkMode} // 전달 확인!
+          toggleDarkMode={toggleDarkMode} 
           initialParams={searchParams}
         />
       )}

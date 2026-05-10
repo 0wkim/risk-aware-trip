@@ -21,7 +21,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
             <MapPin size={28} />
           </div>
           <h1 className={`text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-            VibeMap
+            ArriView
           </h1>
         </div>
         <p className="text-emerald-500 font-bold text-xs uppercase tracking-[0.2em]">Smart Route Alternatives</p>
