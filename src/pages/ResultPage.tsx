@@ -12,6 +12,17 @@ interface Props {
   toggleDarkMode: () => void;
 }
 
+// 1. API 키 및 구-지역 매핑 데이터 설정
+const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
+const DISTRICT_MAPPING = [
+  { district: '강남구', areaNm: '강남역' },
+  { district: '마포구', areaNm: '합정역' },
+  { district: '종로구', areaNm: '광화문광장' },
+  { district: '성동구', areaNm: '왕십리역' },
+  { district: '영등포구', areaNm: '여의도' },
+  { district: '송파구', areaNm: '잠실역' },
+];
+
 const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDarkMode }: Props) => {
   const mapElement = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
@@ -20,18 +31,41 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
   
   const { startPoint, destination, maxHours, maxMinutes } = searchParams;
 
-  const seoulStatus = [
-    { district: '강남구', congestion: '혼잡', temp: '20°C' },
-    { district: '마포구', congestion: '보통', temp: '19°C' },
-    { district: '종로구', congestion: '여유', temp: '21°C' },
-    { district: '성동구', congestion: '보통', temp: '18°C' },
-    { district: '영등포구', congestion: '혼잡', temp: '17°C' },
-    { district: '송파구', congestion: '여유', temp: '20°C' },
-  ];
-  
+  // 2. 실시간 데이터 상태 관리
+  const [seoulStatus, setSeoulStatus] = useState<any[]>([]);
   const [tickerIndex, setTickerIndex] = useState(0);
 
+  // 3. 실시간 서울시 API 호출 로직
   useEffect(() => {
+    const fetchCityData = async () => {
+      try {
+        const promises = DISTRICT_MAPPING.map(async (item) => {
+          const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
+          const response = await fetch(url);
+          const json = await response.json();
+          const cityData = json?.CITYDATA;
+          const weatherBase = cityData?.WEATHER_STTS?.[0];
+          
+          return {
+            district: item.district,
+            congestion: cityData?.LIVE_PPLTN_STTS?.[0]?.AREA_CONGEST_LVL || '정보없음',
+            temp: `${weatherBase?.TEMP || '-'}°C`,
+            weather: weatherBase?.WEATHER_STTUS || weatherBase?.FCST24HOURS?.[0]?.SKY_STTS || '정보없음'
+          };
+        });
+
+        const results = await Promise.all(promises);
+        setSeoulStatus(results);
+      } catch (error) {
+        console.error("Seoul API fetch error:", error);
+      }
+    };
+    fetchCityData();
+  }, []);
+
+  // 4. 롤링 애니메이션 로직
+  useEffect(() => {
+    if (seoulStatus.length === 0) return;
     const timer = setInterval(() => {
       setTickerIndex((prev) => (prev + 1) % seoulStatus.length);
     }, 3000);
@@ -70,7 +104,7 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
   return (
     <div className={`flex h-full animate-in fade-in slide-in-from-right-10 duration-700 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-white'}`}>
       
-      {/* 1. 사이드바 - MainMapPage와 디자인 완전 통일 */}
+      {/* 1. 사이드바 */}
       <div className={`w-[400px] h-full flex flex-col border-r z-20 shadow-2xl transition-all duration-500 ${
         isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'
       }`}>
@@ -151,14 +185,18 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
             isDarkMode ? 'bg-slate-800/90 border border-slate-700 text-slate-200' : 'bg-white/90 border border-slate-100 text-slate-700'
           }`}>
             <div className="flex flex-col transition-transform duration-500 ease-in-out" style={{ transform: `translateY(-${tickerIndex * 56}px)` }}>
-              {seoulStatus.map((item, idx) => (
-                <div key={idx} className="h-14 w-full flex items-center justify-center gap-3 shrink-0 text-sm font-semibold">
-                  <span className="font-black text-emerald-500">{item.district}</span>
-                  <span className={`px-2 py-0.5 rounded-md text-xs text-white ${item.congestion === '혼잡' ? 'bg-rose-500' : item.congestion === '보통' ? 'bg-amber-500' : 'bg-blue-500'}`}>{item.congestion}</span>
-                  <CloudSun size={16} className="ml-3 text-slate-400" />
-                  <span>맑음 {item.temp}</span>
-                </div>
-              ))}
+              {seoulStatus.length === 0 ? (
+                <div className="h-14 w-full flex items-center justify-center text-sm font-semibold text-slate-400">실시간 도시 데이터를 불러오는 중입니다...</div>
+              ) : (
+                seoulStatus.map((item, idx) => (
+                  <div key={idx} className="h-14 w-full flex items-center justify-center gap-3 shrink-0 text-sm font-semibold">
+                    <span className="font-black text-emerald-500">{item.district}</span>
+                    <span className={`px-2 py-0.5 rounded-md text-xs text-white ${item.congestion.includes('붐빔') || item.congestion.includes('혼잡') ? 'bg-rose-500' : item.congestion.includes('보통') ? 'bg-amber-500' : 'bg-blue-500'}`}>{item.congestion}</span>
+                    <CloudSun size={16} className="ml-3 text-slate-400" />
+                    <span>{item.weather} {item.temp}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -166,7 +204,7 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
             <button 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
               className={`h-14 flex items-center gap-3 pr-2 pl-5 rounded-full shadow-lg backdrop-blur-md transition-all active:scale-95 border ${
-                isDarkMode ? 'bg-slate-800/90 border-slate-700 hover:bg-slate-700' : 'bg-white/90 border border-slate-100 hover:bg-slate-50'
+                isDarkMode ? 'bg-slate-800/90 border border-slate-700 hover:bg-slate-700' : 'bg-white/90 border border-slate-100 hover:bg-slate-50'
               }`}
             >
               <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>최서영</span>
@@ -176,33 +214,36 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
             </button>
 
             {isDropdownOpen && (
-              <div className={`absolute right-0 mt-3 w-48 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 py-2 border z-[100] ${
+              <div className={`absolute right-0 mt-3 w-56 rounded-3xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 p-2 border z-[100] ${
                 isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'
               }`}>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // toggleDarkMode가 존재하는지 확인 후 실행 (Optional Chaining)
-                    toggleDarkMode?.(); 
-                  }} 
-                  className={`w-full px-5 py-3.5 text-left flex items-center gap-3 transition-colors ${
-                    isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  {isDarkMode ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} />}
-                  <span className="text-sm font-semibold">모드 변경</span>
-                </button>
+                {/* ☀️/🌙 테마 세그먼트 버튼 */}
+                <div className={`flex p-1 mb-2 rounded-2xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
+                  <button 
+                    onClick={() => isDarkMode && toggleDarkMode?.()} 
+                    className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${!isDarkMode ? 'bg-white text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    <Sun size={18} />
+                  </button>
+                  <button 
+                    onClick={() => !isDarkMode && toggleDarkMode?.()} 
+                    className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-slate-700 text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    <Moon size={18} />
+                  </button>
+                </div>
+
                 <button 
                   onClick={() => { onGoToMyPage(); setIsDropdownOpen(false); }} 
-                  className={`w-full px-5 py-3.5 text-left flex items-center gap-3 transition-colors ${
+                  className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors ${
                     isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
                   }`}
                 >
-                  <User size={18} />
+                  <User size={18} className="text-emerald-500" />
                   <span className="text-sm font-semibold">마이페이지</span>
                 </button>
                 <div className={`h-px w-full my-1 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`} />
-                <button className={`w-full px-5 py-3.5 text-left flex items-center gap-3 transition-colors text-rose-500 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
+                <button className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors text-rose-500 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
                   <LogOut size={18} />
                   <span className="text-sm font-semibold">로그아웃</span>
                 </button>
