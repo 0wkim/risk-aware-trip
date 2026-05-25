@@ -8,36 +8,16 @@ interface MyPageProps {
   onGoToMap: () => void;
   isExternalDarkMode: boolean;
   toggleDarkMode: () => void;
+  seoulData: any[]; // 프롭스 추가됨
+  isSeoulDataLoading: boolean; // 프롭스 추가됨
 }
 
-// 1. API 키 및 25개 구 전체 데이터 매핑
-const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
-
-const ALL_DISTRICTS = [
-  { district: '강남구', areaNm: '강남역' }, { district: '강동구', areaNm: '천호역' },
-  { district: '강북구', areaNm: '미아사거리역' }, { district: '강서구', areaNm: '마곡나루역' },
-  { district: '관악구', areaNm: '신림역' }, { district: '광진구', areaNm: '건대입구역' },
-  { district: '구로구', areaNm: '신도림역' }, { district: '금천구', areaNm: '가산디지털단지역' },
-  { district: '노원구', areaNm: '노원역' }, { district: '도봉구', areaNm: '창동역' },
-  { district: '동대문구', areaNm: '청량리역' }, { district: '동작구', areaNm: '노량진역' },
-  { district: '마포구', areaNm: '합정역' }, { district: '서대문구', areaNm: '신촌역' },
-  { district: '서초구', areaNm: '교대역' }, { district: '성동구', areaNm: '왕십리역' },
-  { district: '성북구', areaNm: '성신여대입구역' }, { district: '송파구', areaNm: '잠실역' },
-  { district: '양천구', areaNm: '목동역' }, { district: '영등포구', areaNm: '여의도' },
-  { district: '용산구', areaNm: '이태원 관광특구' }, { district: '은평구', areaNm: '연신내역' },
-  { district: '종로구', areaNm: '광화문광장' }, { district: '중구', areaNm: '명동 관광특구' },
-  { district: '중랑구', areaNm: '상봉역' }
-];
-
-const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) => {
+const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode, seoulData, isSeoulDataLoading }: MyPageProps) => {
   const isDarkMode = isExternalDarkMode;
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [isMinimalMode, setIsMinimalMode] = useState(false);
   
-  // 데이터 및 인터랙션 상태
-  const [seoulStatus, setSeoulStatus] = useState<any[]>([]);
   const [tickerIndex, setTickerIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [showDetailModal, setShowDetailModal] = useState(false); 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -47,53 +27,19 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
     password: '●●●●●●●●'
   });
 
-  // 2. 실시간 데이터 호출 (날씨 텍스트 누락 방지 로직 포함)
+  // 롤링 타이머 (모달 열릴 때는 중지)
   useEffect(() => {
-    const fetchCityData = async () => {
-      try {
-        setIsLoading(true);
-        const promises = ALL_DISTRICTS.map(async (item) => {
-          const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
-          const response = await fetch(url);
-          const json = await response.json();
-          const cityData = json?.CITYDATA;
-          const weatherBase = cityData?.WEATHER_STTS?.[0];
-          
-          // WEATHER_STTUS가 없으면 FCST24HOURS의 첫 번째 예보 상태를 가져옴
-          const weatherTxt = weatherBase?.WEATHER_STTUS || weatherBase?.FCST24HOURS?.[0]?.SKY_STTS || '정보없음';
-          
-          return {
-            district: item.district,
-            realAreaName: cityData?.AREA_NM || item.areaNm, 
-            congestion: cityData?.LIVE_PPLTN_STTS?.[0]?.AREA_CONGEST_LVL || '정보없음',
-            temp: `${weatherBase?.TEMP || '-'}°C`,
-            weatherText: weatherTxt
-          };
-        });
-        const results = await Promise.all(promises);
-        setSeoulStatus(results);
-      } catch (error) {
-        console.error("MyPage API fetch error:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCityData();
-  }, []);
-
-  // 3. 롤링 타이머 (모달 열릴 때는 중지)
-  useEffect(() => {
-    if (seoulStatus.length === 0 || showDetailModal) return;
+    if (seoulData.length === 0 || showDetailModal) return;
     const timer = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % seoulStatus.length);
+      setTickerIndex((prev) => (prev + 1) % seoulData.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, [seoulStatus.length, showDetailModal]);
+  }, [seoulData.length, showDetailModal]);
 
-  // 4. 상세 모달 내 검색 필터
+  // 상세 모달 내 검색 필터
   const filteredStatus = useMemo(() => {
-    return seoulStatus.filter(s => s.district.includes(searchTerm));
-  }, [seoulStatus, searchTerm]);
+    return seoulData.filter(s => s.district.includes(searchTerm));
+  }, [seoulData, searchTerm]);
 
   return (
     <div className={`fixed inset-0 flex items-center justify-center p-4 font-sans transition-all duration-500 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'}`}>
@@ -201,18 +147,17 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
             <button onClick={() => setCurrentView(v => v === 'dashboard' ? 'settings' : 'dashboard')} className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all ${isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-white' : 'bg-white text-slate-500 hover:text-emerald-500'}`}><Settings size={20} /></button>
           </div>
 
-          {/* 클릭 가능한 실시간 위젯 */}
           <div onClick={() => setShowDetailModal(true)} className={`mb-10 rounded-[2.5rem] overflow-hidden border aspect-square flex flex-col shadow-xl cursor-pointer group transition-all hover:scale-105 active:scale-95 ${isDarkMode ? 'bg-slate-800 border-slate-700 shadow-black/20' : 'bg-white border-slate-200 shadow-slate-200/50'}`}>
             <div className="p-5 border-b border-inherit flex items-center justify-between bg-inherit group-hover:bg-emerald-500/5 transition-colors">
               <span className="text-[11px] font-black uppercase tracking-widest opacity-50">Live Status</span>
               <Maximize2 size={14} className="text-emerald-500 animate-pulse" />
             </div>
             <div className="flex-1 relative overflow-hidden text-center bg-inherit">
-              {isLoading ? (
+              {isSeoulDataLoading ? (
                 <div className="h-full flex items-center justify-center text-xs animate-pulse">데이터 로드 중...</div>
               ) : (
                 <div className="flex flex-col h-full transition-transform duration-1000 ease-in-out" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
-                  {seoulStatus.slice(0, 6).map((item, idx) => (
+                  {seoulData.slice(0, 6).map((item, idx) => (
                     <div key={idx} className="h-full w-full flex flex-col items-center justify-center p-6 gap-3 shrink-0">
                       <span className="text-sm font-bold text-slate-400">{item.district}</span>
                       <div className={`px-4 py-1.5 rounded-full text-[11px] font-black text-white ${item.congestion.includes('혼잡') ? 'bg-rose-500' : 'bg-blue-500'}`}>{item.congestion}</div>
@@ -225,7 +170,6 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
           </div>
 
           <div className="flex-1 flex flex-col text-left space-y-8">
-            {/* 해/달 버튼형 테마 토글 */}
             <div>
               <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2 mb-4">Theme Mode</h4>
               <div className={`flex p-1.5 rounded-2xl border transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-200 border-slate-200'}`}>
@@ -234,7 +178,6 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
               </div>
             </div>
 
-            {/* 레이아웃 모드 (Default / Focus) */}
             <div>
               <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2 mb-4">Layout View</h4>
               <div className={`flex p-1.5 rounded-2xl border transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-200 border-slate-200'}`}>
@@ -250,7 +193,6 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
         </aside>
       </div>
 
-      {/* [상세 모달] 아이폰 날씨 앱 스타일 디테일 뷰 */}
       {showDetailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowDetailModal(false)} />
@@ -301,7 +243,6 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
         </div>
       )}
 
-      {/* 전용 스크롤바 스타일 */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
@@ -311,7 +252,6 @@ const MyPage = ({ onGoToMap, isExternalDarkMode, toggleDarkMode }: MyPageProps) 
   );
 };
 
-// 5. 보조 컴포넌트: 통계 카드
 const StatCard = ({ label, value, color, isDarkMode, isMinimal }: any) => (
   <div className={`p-5 rounded-2xl border transition-all duration-500 text-left ${isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100'} ${isMinimal ? 'flex justify-between items-center py-4' : ''}`}>
     <p className={`font-bold text-slate-400 uppercase tracking-wider ${isMinimal ? 'text-[9px]' : 'text-[10px] mb-1'}`}>{label}</p>
@@ -322,7 +262,6 @@ const StatCard = ({ label, value, color, isDarkMode, isMinimal }: any) => (
   </div>
 );
 
-// 6. 보조 컴포넌트: 기록 아이템
 const HistoryItem = ({ from, to, date, isDarkMode }: any) => (
   <div className={`group p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${isDarkMode ? 'bg-slate-800/30 border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'}`}>
     <div className="flex items-center gap-4 text-left">

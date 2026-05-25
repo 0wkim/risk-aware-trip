@@ -10,20 +10,10 @@ interface Props {
   onGoToMyPage: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  seoulData: any[]; // 프롭스 추가됨
 }
 
-// 1. API 키 및 구-지역 매핑 데이터 설정
-const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
-const DISTRICT_MAPPING = [
-  { district: '강남구', areaNm: '강남역' },
-  { district: '마포구', areaNm: '합정역' },
-  { district: '종로구', areaNm: '광화문광장' },
-  { district: '성동구', areaNm: '왕십리역' },
-  { district: '영등포구', areaNm: '여의도' },
-  { district: '송파구', areaNm: '잠실역' },
-];
-
-const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDarkMode }: Props) => {
+const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDarkMode, seoulData }: Props) => {
   const mapElement = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -31,46 +21,19 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
   
   const { startPoint, destination, maxHours, maxMinutes } = searchParams;
 
-  // 2. 실시간 데이터 상태 관리
-  const [seoulStatus, setSeoulStatus] = useState<any[]>([]);
   const [tickerIndex, setTickerIndex] = useState(0);
 
-  // 3. 실시간 서울시 API 호출 로직
-  useEffect(() => {
-    const fetchCityData = async () => {
-      try {
-        const promises = DISTRICT_MAPPING.map(async (item) => {
-          const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
-          const response = await fetch(url);
-          const json = await response.json();
-          const cityData = json?.CITYDATA;
-          const weatherBase = cityData?.WEATHER_STTS?.[0];
-          
-          return {
-            district: item.district,
-            congestion: cityData?.LIVE_PPLTN_STTS?.[0]?.AREA_CONGEST_LVL || '정보없음',
-            temp: `${weatherBase?.TEMP || '-'}°C`,
-            weather: weatherBase?.WEATHER_STTUS || weatherBase?.FCST24HOURS?.[0]?.SKY_STTS || '정보없음'
-          };
-        });
+  // 결과 페이지의 감성을 위해 기존처럼 주요 6개 구만 필터링해서 보여주기
+  const targetDistricts = ['강남구', '마포구', '종로구', '성동구', '영등포구', '송파구'];
+  const displayData = seoulData.filter(item => targetDistricts.includes(item.district));
 
-        const results = await Promise.all(promises);
-        setSeoulStatus(results);
-      } catch (error) {
-        console.error("Seoul API fetch error:", error);
-      }
-    };
-    fetchCityData();
-  }, []);
-
-  // 4. 롤링 애니메이션 로직
   useEffect(() => {
-    if (seoulStatus.length === 0) return;
+    if (displayData.length === 0) return;
     const timer = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % seoulStatus.length);
+      setTickerIndex((prev) => (prev + 1) % displayData.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, [seoulStatus.length]);
+  }, [displayData.length]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -185,10 +148,10 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
             isDarkMode ? 'bg-slate-800/90 border border-slate-700 text-slate-200' : 'bg-white/90 border border-slate-100 text-slate-700'
           }`}>
             <div className="flex flex-col transition-transform duration-500 ease-in-out" style={{ transform: `translateY(-${tickerIndex * 56}px)` }}>
-              {seoulStatus.length === 0 ? (
+              {displayData.length === 0 ? (
                 <div className="h-14 w-full flex items-center justify-center text-sm font-semibold text-slate-400">실시간 도시 데이터를 불러오는 중입니다...</div>
               ) : (
-                seoulStatus.map((item, idx) => (
+                displayData.map((item, idx) => (
                   <div key={idx} className="h-14 w-full flex items-center justify-center gap-3 shrink-0 text-sm font-semibold">
                     <span className="font-black text-emerald-500">{item.district}</span>
                     <span className={`px-2 py-0.5 rounded-md text-xs text-white ${item.congestion.includes('붐빔') || item.congestion.includes('혼잡') ? 'bg-rose-500' : item.congestion.includes('보통') ? 'bg-amber-500' : 'bg-blue-500'}`}>{item.congestion}</span>
@@ -217,7 +180,6 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
               <div className={`absolute right-0 mt-3 w-56 rounded-3xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 p-2 border z-[100] ${
                 isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'
               }`}>
-                {/* ☀️/🌙 테마 세그먼트 버튼 */}
                 <div className={`flex p-1 mb-2 rounded-2xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
                   <button 
                     onClick={() => isDarkMode && toggleDarkMode?.()} 
