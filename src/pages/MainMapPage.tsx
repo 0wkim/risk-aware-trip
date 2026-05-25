@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, ArrowRight, User, Moon, Sun, Route, Star, Home, Briefcase, LogOut, CloudSun } from 'lucide-react';
+import Maps from '../Maps/Maps';
 
 interface Props {
   onSearch: (params: any) => void;
@@ -203,7 +204,8 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
 
       {/* 2. 오른쪽 지도 영역 */}
       <div className="flex-1 relative bg-slate-200 overflow-hidden">
-        <div ref={mapElement} className="w-full h-full object-cover" />
+        {/* <div ref={mapElement} className="w-full h-full object-cover" /> */}
+        <Maps/>
 
         {/* 3. 지도 위 상단 바 */}
         <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center gap-6">

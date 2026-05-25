@@ -3,6 +3,7 @@ import {
   ChevronLeft, Clock, Navigation, CheckCircle2, 
   User, ArrowRight, MapPin, CloudSun, Sun, Moon, LogOut 
 } from 'lucide-react';
+import Maps from '../Maps/Maps';
 
 interface Props {
   searchParams: any;
@@ -214,7 +215,8 @@ const ResultPage = ({ searchParams, onBack, onGoToMyPage, isDarkMode, toggleDark
           </div>
         </div>
 
-        <div ref={mapElement} className="w-full h-full object-cover" />
+        {/* <div ref={mapElement} className="w-full h-full object-cover" /> */}
+        <Maps/>
         
         {isDarkMode && <div className="absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-500 z-10" />}
       </div>
