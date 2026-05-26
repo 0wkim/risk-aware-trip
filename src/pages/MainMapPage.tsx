@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, ArrowRight, User, Moon, Sun, Route, Star, Home, Briefcase, LogOut, CloudSun } from 'lucide-react';
+import { MapPin, ArrowRight, User, Moon, Sun, Route, Star, Home, Briefcase, LogOut, CloudSun, Trash2, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle } from 'lucide-react';
 import Maps from '../Maps/Maps';
 
 interface Props {
@@ -8,107 +8,228 @@ interface Props {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   initialParams: any;
-  seoulData: any[]; // 프롭스 추가됨
+  seoulData: any[]; 
+}
+
+interface BackendPlace {
+  lat: number;
+  lng: number;
+  place_id: string;
+  categories: string[];
+  name: string;
+}
+
+interface FavoriteItem {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  place_id: string;
+  categories: string[];
+  customCategory: 'cafe' | 'restaurant' | 'spot' | 'other';
 }
 
 const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initialParams, seoulData }: Props) => {
-  const [startPoint, setStartPoint] = useState(initialParams.startPoint);
-  const [destination, setDestination] = useState(initialParams.destination);
-  const [maxHours, setMaxHours] = useState(initialParams.maxHours);
-  const [maxMinutes, setMaxMinutes] = useState(initialParams.maxMinutes);
+  const [startPoint, setStartPoint] = useState(initialParams.startPoint || '');
+  const [destination, setDestination] = useState(initialParams.destination || '');
+  const [maxHours, setMaxHours] = useState(initialParams.maxHours || '0');
+  const [maxMinutes, setMaxMinutes] = useState(initialParams.maxMinutes || '0');
   
   const [activeInput, setActiveInput] = useState<'start' | 'dest'>('dest');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const mapElement = useRef(null);
 
   const [tickerIndex, setTickerIndex] = useState(0);
 
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedStartPlace, setSelectedStartPlace] = useState<BackendPlace | null>(null);
+  const [selectedDestPlace, setSelectedDestPlace] = useState<BackendPlace | null>(null);
+  const [showSearchDropdown, setShowSearchDropdown] = useState<'start' | 'dest' | null>(null);
+
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
+    const saved = localStorage.getItem('custom_favorites');
+    return saved ? JSON.parse(saved) : [
+      { id: 'fav-1', name: '강남역 스타벅스', address: '서울특별시 강남구 테헤란로 123', lat: 37.5012, lng: 127.0396, place_id: '12345', categories: ['cafe'], customCategory: 'cafe' },
+      { id: 'fav-2', name: '맥도날드 성수점', address: '서울특별시 성동구 성수이로 88', lat: 37.5445, lng: 127.0560, place_id: '67890', categories: ['restaurant'], customCategory: 'restaurant' }
+    ];
+  });
+
+  const [newFavName, setNewFavName] = useState('');
+  const [isAddingFav, setIsAddingFav] = useState(false);
+  const [favSelectedPlace, setFavSelectedPlace] = useState<any>(null);
+  const [selectedFavCategory, setSelectedFavCategory] = useState<'cafe' | 'restaurant' | 'spot' | 'other'>('cafe');
+
   useEffect(() => {
-    if (seoulData.length === 0) return;
+    localStorage.setItem('custom_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const targetDistricts = ['강남구', '마포구', '종로구', '성동구', '영등포구', '송파구'];
+  const displayData = seoulData ? seoulData.filter(item => targetDistricts.includes(item.district)) : [];
+
+  const mapToBackendCategory = (categoryName: string): string => {
+    if (categoryName.includes('카페') || categoryName.includes('디저트')) return 'cafe';
+    if (categoryName.includes('음식점')) return 'restaurant';
+    if (categoryName.includes('술집') || categoryName.includes('바')) return 'bar';
+    if (categoryName.includes('쇼핑') || categoryName.includes('마트')) return 'shopping';
+    if (categoryName.includes('관광') || categoryName.includes('문화') || categoryName.includes('명소')) return 'tourist';
+    return 'other';
+  };
+
+  const toBackendDay = (date: Date): number => (date.getDay() + 6) % 7;
+
+  const handleInputChange = (keyword: string, type: 'start' | 'dest' | 'fav') => {
+    if (type === 'start') setStartPoint(keyword);
+    else if (type === 'dest') setDestination(keyword);
+    else {
+      setNewFavName(keyword);
+      setFavSelectedPlace(null);
+    }
+
+    if (!keyword.trim()) {
+      if (type !== 'fav') {
+        setSearchResults([]);
+        setShowSearchDropdown(null);
+      }
+      return;
+    }
+
+    if (!window.kakao || !window.kakao.maps.services) return;
+    const ps = new window.kakao.maps.services.Places();
+
+    ps.keywordSearch(keyword, (data, status) => {
+      if (status === window.kakao.maps.services.Status.OK) {
+        setSearchResults(data);
+        if (type !== 'fav') setShowSearchDropdown(type);
+        else setShowSearchDropdown('start'); 
+      } else {
+        setSearchResults([]);
+        setShowSearchDropdown(null);
+      }
+    });
+  };
+
+  const handleSelectPlace = (place: any, type: 'start' | 'dest' | 'fav') => {
+    const formattedPlace: BackendPlace = {
+      lat: parseFloat(place.y),
+      lng: parseFloat(place.x),
+      place_id: place.id,
+      categories: [mapToBackendCategory(place.category_name)],
+      name: place.place_name 
+    };
+
+    if (type === 'start') {
+      setStartPoint(place.place_name); 
+      setSelectedStartPlace(formattedPlace); 
+    } else if (type === 'dest') {
+      setDestination(place.place_name); 
+      setSelectedDestPlace(formattedPlace); 
+    } else if (type === 'fav') {
+      setNewFavName(place.place_name);
+      setFavSelectedPlace(place);
+      
+      const cat = place.category_name;
+      if (cat.includes('카페')) setSelectedFavCategory('cafe');
+      else if (cat.includes('음식점')) setSelectedFavCategory('restaurant');
+      else if (cat.includes('관광') || cat.includes('문화')) setSelectedFavCategory('spot');
+      else setSelectedFavCategory('other');
+    }
+    setShowSearchDropdown(null);
+    setSearchResults([]);
+  };
+
+  const handleAddFavorite = () => {
+    if (!newFavName.trim() || !favSelectedPlace) {
+      alert("추가할 장소를 검색 목록에서 정확히 선택해 주세요.");
+      return;
+    }
+
+    const newFav: FavoriteItem = {
+      id: `fav-${Date.now()}`,
+      name: newFavName,
+      address: favSelectedPlace.address_name || favSelectedPlace.road_address_name || '주소 정보 없음',
+      lat: parseFloat(favSelectedPlace.y),
+      lng: parseFloat(favSelectedPlace.x),
+      place_id: favSelectedPlace.id,
+      categories: [mapToBackendCategory(favSelectedPlace.category_name)],
+      customCategory: selectedFavCategory
+    };
+
+    setFavorites((prev) => [newFav, ...prev]);
+    setNewFavName('');
+    setFavSelectedPlace(null);
+    setIsAddingFav(false);
+  };
+
+  const handleDeleteFavorite = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    setFavorites((prev) => prev.filter(item => item.id !== id));
+  };
+
+  const handleFavoriteClick = (fav: FavoriteItem) => {
+    const targetPlace: BackendPlace = {
+      lat: fav.lat,
+      lng: fav.lng,
+      place_id: fav.place_id,
+      categories: fav.categories,
+      name: fav.name
+    };
+
+    if (activeInput === 'start') {
+      setStartPoint(fav.name);
+      setSelectedStartPlace(targetPlace);
+    } else {
+      setDestination(fav.name);
+      setSelectedDestPlace(targetPlace);
+    }
+  };
+
+  const handleSearchClick = () => {
+    const now = new Date();
+    if (!selectedStartPlace || !selectedDestPlace) {
+      alert("출발지와 도착지를 검색 결과 리스트에서 정확히 선택해주세요.");
+      return;
+    }
+    onSearch({
+      startPoint: startPoint, 
+      destination: destination,
+      places: [selectedStartPlace, selectedDestPlace], 
+      day: toBackendDay(now),
+      hour: now.getHours(),
+      maxHours: Number(maxHours),
+      maxMinutes: Number(maxMinutes)
+    });
+  };
+
+  useEffect(() => {
+    if (displayData.length === 0) return;
     const timer = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % seoulData.length);
+      setTickerIndex((prev) => (prev + 1) % displayData.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, [seoulData.length]);
+  }, [displayData.length]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (showSearchDropdown && !((event.target as HTMLElement).closest('.search-container'))) {
+        setShowSearchDropdown(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showSearchDropdown]);
 
-  useEffect(() => {
-    const { naver } = window as any;
-    if (!mapElement.current || !naver) return;
-
-    const mapOptions = {
-      center: new naver.maps.LatLng(37.5666805, 126.9784147),
-      zoom: 13,
-    };
-    const map = new naver.maps.Map(mapElement.current, mapOptions);
-  }, [isDarkMode]);
-
-  const handleSearchClick = () => {
-    onSearch({ startPoint, destination, maxHours, maxMinutes });
+  const getFavoriteIcon = (cat: string) => {
+    switch (cat) {
+      case 'cafe': return <Coffee size={15} />;
+      case 'restaurant': return <Utensils size={15} />;
+      case 'spot': return <Landmark size={15} />;
+      default: return <HelpCircle size={15} />;
+    }
   };
-
-  const favorites = [
-    { id: 1, name: '집', address: '서울특별시 강남구 테헤란로 123', icon: <Home size={16} /> },
-    { id: 2, name: '회사', address: '경기도 성남시 분당구 판교역로 166', icon: <Briefcase size={16} /> }
-  ];
-
-  // 🚨 [임시 백엔드 연결 테스트용 코드] - 통신 확인이 끝나면 이 useEffect 블록은 삭제하셔도 됩니다!
-  useEffect(() => {
-    const testBackend = async () => {
-      // vite.config.ts에 proxy를 설정하고 .env의 VITE_API_BASE를 비워두셨다면 API_URL은 빈 문자열이 됩니다.
-      // 이 경우 fetch('/api/health') 로 요청이 가고, Vite가 이를 가로채서 클라우드플레어로 몰래 보내줍니다. (CORS 우회)
-      const API_URL = import.meta.env.VITE_API_BASE || ''; 
-      console.log("🚀 백엔드 테스트 시작! (Proxy를 통한다면 대상 URL은 상대경로입니다)");
-
-      try {
-        // 1. 백엔드 가용성 확인 (/api/health)
-        const healthRes = await fetch(`${API_URL}/api/health`);
-        const healthData = await healthRes.json();
-        console.log("✅ 1. Health Check 응답:", healthData); // 정상이라면 { status: "ok" } 가 뜹니다.
-
-        // 2. 메타데이터 가져오기 (/api/meta)
-        const metaRes = await fetch(`${API_URL}/api/meta`);
-        const metaData = await metaRes.json();
-        console.log("✅ 2. Meta Data 응답:", metaData);
-
-        // 3. 단일 장소 혼잡도 예측 (/api/predict-batch)
-        const predictRes = await fetch(`${API_URL}/api/predict-batch`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            places: [
-              { lat: 37.5012, lng: 127.0396, categories: ["cafe"], place_id: "demo_1" }
-            ],
-            day: 4,    // 금요일 (0=월)
-            hour: 19   // 저녁 7시
-          })
-        });
-        
-        if (!predictRes.ok) {
-           throw new Error(`혼잡도 예측 에러: ${predictRes.status}`);
-        }
-        
-        const predictData = await predictRes.json();
-        console.log("✅ 3. 단일 장소 예측 결과:", predictData.results[0].prediction);
-
-      } catch (error) {
-        console.error("❌ 백엔드 통신 실패 (에러 내용 확인 필요):", error);
-      }
-    };
-
-    testBackend();
-  }, []);
-  // 🚨 여기까지가 임시 테스트 코드입니다.
 
   return (
     <div className="flex h-full animate-in fade-in duration-700">
@@ -124,97 +245,216 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-8 text-left">
-          <div className="space-y-6">
-            <div>
-              <label className={`text-[11px] font-black uppercase tracking-widest mb-2 block ${activeInput === 'start' ? 'text-blue-500' : 'text-slate-400'}`}>Starting Point</label>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 text-left">
+          <div className="space-y-5">
+            {/* 출발지 인풋 */}
+            <div className="relative search-container">
+              <label className={`text-[11px] font-black uppercase tracking-wildest mb-1.5 block ${activeInput === 'start' ? 'text-blue-500' : 'text-slate-400'}`}>Starting Point</label>
               <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                 <MapPin size={18} className={`${activeInput === 'start' ? 'text-blue-500' : 'text-slate-400'} shrink-0 transition-colors`} />
                 <input 
                   type="text" 
                   value={startPoint} 
-                  onChange={(e) => setStartPoint(e.target.value)} 
-                  onFocus={() => setActiveInput('start')}
+                  onChange={(e) => handleInputChange(e.target.value, 'start')} 
+                  onFocus={() => { setActiveInput('start'); if(searchResults.length) setShowSearchDropdown('start'); }}
                   placeholder="출발지를 입력하세요" 
                   className="bg-transparent outline-none w-full font-bold text-sm text-inherit" 
                 />
               </div>
+              {showSearchDropdown === 'start' && !isAddingFav && (
+                <div className={`absolute left-0 right-0 mt-2 max-h-48 overflow-y-auto rounded-2xl shadow-xl z-50 border p-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'}`}>
+                  {searchResults.map((place) => (
+                    <button key={place.id} onClick={() => handleSelectPlace(place, 'start')} className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold transition-colors flex flex-col gap-0.5 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
+                      <span className="font-bold text-sm text-inherit">{place.place_name}</span>
+                      <span className="text-slate-400 text-[10px] truncate w-full">{place.address_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div>
-              <label className={`text-[11px] font-black uppercase tracking-widest mb-2 block ${activeInput === 'dest' ? 'text-rose-500' : 'text-slate-400'}`}>Destination</label>
+
+            {/* 도착지 인풋 */}
+            <div className="relative search-container">
+              <label className={`text-[11px] font-black uppercase tracking-wildest mb-1.5 block ${activeInput === 'dest' ? 'text-rose-500' : 'text-slate-400'}`}>Destination</label>
               <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all focus-within:border-rose-500 focus-within:ring-2 focus-within:ring-rose-500/20 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                 <MapPin size={18} className={`${activeInput === 'dest' ? 'text-rose-500' : 'text-slate-400'} shrink-0 transition-colors`} />
                 <input 
                   type="text" 
                   value={destination} 
-                  onChange={(e) => setDestination(e.target.value)} 
-                  onFocus={() => setActiveInput('dest')}
+                  onChange={(e) => handleInputChange(e.target.value, 'dest')} 
+                  onFocus={() => { setActiveInput('dest'); if(searchResults.length) setShowSearchDropdown('dest'); }}
                   placeholder="도착지를 입력하세요" 
                   className="bg-transparent outline-none w-full font-bold text-sm text-inherit" 
                 />
               </div>
+              {showSearchDropdown === 'dest' && (
+                <div className={`absolute left-0 right-0 mt-2 max-h-48 overflow-y-auto rounded-2xl shadow-xl z-50 border p-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'}`}>
+                  {searchResults.map((place) => (
+                    <button key={place.id} onClick={() => handleSelectPlace(place, 'dest')} className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold transition-colors flex flex-col gap-0.5 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
+                      <span className="font-bold text-sm text-inherit">{place.place_name}</span>
+                      <span className="text-slate-400 text-[10px] truncate w-full">{place.address_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
+          {/* 설정 시간 */}
           <div>
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Max Travel Time</label>
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wildest mb-2 block">설정 시간</label>
             <div className="flex gap-3">
-              <div className={`flex-1 flex items-center p-4 rounded-2xl border transition-all focus-within:border-emerald-500 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                <input type="number" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} min="0" className="bg-transparent outline-none w-full text-xl font-black text-emerald-500 text-center" />
-                <span className="ml-1 text-xs font-bold opacity-50 uppercase">Hr</span>
+              <div className={`flex-1 flex items-center p-3.5 rounded-2xl border transition-all focus-within:border-emerald-500 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
+                <input type="number" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} min="0" className="bg-transparent outline-none w-full text-lg font-black text-emerald-500 text-center" />
+                <span className="ml-1 text-[10px] font-bold opacity-50 uppercase">Hr</span>
               </div>
-              <div className={`flex-1 flex items-center p-4 rounded-2xl border transition-all focus-within:border-emerald-500 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                <input type="number" value={maxMinutes} onChange={(e) => setMaxMinutes(e.target.value)} min="0" max="59" className="bg-transparent outline-none w-full text-xl font-black text-emerald-500 text-center" />
-                <span className="ml-1 text-xs font-bold opacity-50 uppercase">Min</span>
+              <div className={`flex-1 flex items-center p-3.5 rounded-2xl border transition-all focus-within:border-emerald-500 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
+                <input type="number" value={maxMinutes} onChange={(e) => setMaxMinutes(e.target.value)} min="0" max="59" className="bg-transparent outline-none w-full text-lg font-black text-emerald-500 text-center" />
+                <span className="ml-1 text-[10px] font-bold opacity-50 uppercase">Min</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-2">
-            <div className="flex items-center gap-2 mb-4">
-              <Star size={16} className="text-yellow-500 fill-yellow-500" />
-              <h3 className={`text-sm font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>즐겨찾는 장소</h3>
+          {/* 즐겨찾기 CRUD 섹션 */}
+          <div className="mt-1 flex-1 flex flex-col min-h-[220px]">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <Star size={15} className="text-yellow-500 fill-yellow-500" />
+                <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>즐겨찾는 장소</h3>
+              </div>
+              <button 
+                onClick={() => setIsAddingFav(!isAddingFav)}
+                className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-lg border transition-all ${
+                  isAddingFav 
+                    ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white' 
+                    : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500 hover:text-white'
+                }`}
+              >
+                {isAddingFav ? <Minus size={12} /> : <Plus size={12} />} {isAddingFav ? '닫기' : '추가'}
+              </button>
             </div>
-            <div className="space-y-3">
-              {favorites.map(fav => (
-                <button 
-                  key={fav.id} 
-                  onClick={() => {
-                    if (activeInput === 'start') {
-                      setStartPoint(fav.name);
-                    } else {
-                      setDestination(fav.name);
-                    }
-                  }} 
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left group ${isDarkMode ? 'bg-slate-800/50 border-slate-700 hover:border-emerald-500/50' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'}`}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'bg-slate-700 text-slate-400 group-hover:text-emerald-400' : 'bg-slate-50 text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-500'}`}>{fav.icon}</div>
-                  <div><p className={`font-bold text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{fav.name}</p><p className="text-[10px] text-slate-500 truncate w-40 mt-0.5">{fav.address}</p></div>
+
+            {/* 즐겨찾기 생성 폼 구조 개선 완료 */}
+            {isAddingFav && (
+              <div className={`p-4 rounded-3xl border mb-3 space-y-3.5 animate-in slide-in-from-top-2 duration-200 relative ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
+                
+                {/* ── ✅ [구조 변경 핵심 구역]: 독립 검색 컨테이너 래핑으로 칩 분리 ── */}
+                <div className="space-y-1.5 relative search-container">
+                  <div className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">새 장소 키워드 검색</div>
+                  <input 
+                    type="text"
+                    value={newFavName}
+                    onChange={(e) => handleInputChange(e.target.value, 'fav')}
+                    placeholder="예: 성수 스타벅스, 우리집"
+                    className={`w-full p-2.5 rounded-xl text-xs font-bold outline-none border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}
+                  />
+
+                  {/* 💡 카테고리 배너 위로 완벽하게 떨어지는 진짜 '인풋 전용' 자동완성 드롭다운 */}
+                  {newFavName && !favSelectedPlace && searchResults.length > 0 && (
+                    <div className={`absolute left-0 right-0 top-[62px] max-h-40 overflow-y-auto rounded-xl shadow-2xl z-[60] border p-1 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'}`}>
+                      {searchResults.map((place) => (
+                        <button key={place.id} onClick={() => handleSelectPlace(place, 'fav')} className={`w-full text-left p-2 rounded-lg text-[11px] font-semibold transition-colors flex flex-col ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
+                          <span className="font-bold text-inherit">{place.place_name}</span>
+                          <span className="text-[9px] opacity-50 truncate w-full">{place.address_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 카테고리 분류가 검색창 팝업에 가려지지 않고 물리적으로 보존됨 */}
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">장소 카테고리 분류</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { key: 'cafe', label: '카페', color: 'hover:text-amber-500 active:bg-amber-500/10', activeClass: 'bg-amber-500 text-white border-amber-500' },
+                      { key: 'restaurant', label: '맛집', color: 'hover:text-blue-500 active:bg-blue-500/10', activeClass: 'bg-blue-500 text-white border-blue-500' },
+                      { key: 'spot', label: '명소', color: 'hover:text-purple-500 active:bg-purple-500/10', activeClass: 'bg-purple-500 text-white border-purple-500' },
+                      { key: 'other', label: '기타', color: 'hover:text-slate-500 active:bg-slate-500/10', activeClass: 'bg-slate-500 text-white border-slate-500' }
+                    ].map((chip) => (
+                      <button
+                        key={chip.key}
+                        type="button"
+                        onClick={() => setSelectedFavCategory(chip.key as any)}
+                        className={`py-1.5 rounded-lg border text-[11px] font-bold text-center transition-all ${
+                          selectedFavCategory === chip.key 
+                            ? chip.activeClass 
+                            : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
+                        } ${chip.color}`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={handleAddFavorite} className="w-full bg-emerald-500 text-white py-2 rounded-xl text-xs font-black shadow-md hover:bg-emerald-600 transition-colors">
+                  리스트에 등록하기
                 </button>
-              ))}
+              </div>
+            )}
+
+            {/* 즐겨찾기 스택 스크롤바 리스트 */}
+            <div className="space-y-2.5 overflow-y-auto max-h-[260px] pr-1 custom-scrollbar">
+              {favorites.length === 0 ? (
+                <div className="text-center py-8 text-xs font-bold text-slate-400 opacity-60">등록된 즐겨찾는 장소가 없습니다.</div>
+              ) : (
+                favorites.map(fav => (
+                  <div key={fav.id} onClick={() => handleFavoriteClick(fav)} className={`group w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${isDarkMode ? 'bg-slate-800/50 border-slate-700 hover:border-emerald-500/50' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'}`}>
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                        fav.customCategory === 'cafe' ? (isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600') :
+                        fav.customCategory === 'restaurant' ? (isDarkMode ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600') :
+                        fav.customCategory === 'spot' ? (isDarkMode ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600') :
+                        (isDarkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-50 text-slate-500')
+                      }`}>
+                        {getFavoriteIcon(fav.customCategory)}
+                      </div>
+                      
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className={`font-black text-sm tracking-tight ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{fav.name}</p>
+                          <span className={`text-[8px] font-black px-1 rounded uppercase tracking-tighter ${
+                            fav.customCategory === 'cafe' ? 'bg-amber-500/10 text-amber-500' :
+                            fav.customCategory === 'restaurant' ? 'bg-blue-500/10 text-blue-500' :
+                            fav.customCategory === 'spot' ? 'bg-purple-500/10 text-purple-500' : 'bg-slate-500/10 text-slate-400'
+                          }`}>{fav.customCategory || 'OTHER'}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5 w-full">{fav.address}</p>
+                      </div>
+                    </div>
+                    <button onClick={(e) => handleDeleteFavorite(fav.id, e)} className="p-2 rounded-xl text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 hover:text-rose-500 transition-all shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          <div className="flex-1"></div>
-          <button onClick={handleSearchClick} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-3xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest text-sm shrink-0">
-            Check Alternatives <ArrowRight size={18} />
+          <button onClick={handleSearchClick} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4.5 rounded-2xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest text-xs shrink-0 mt-2">
+            Check Alternatives <ArrowRight size={16} />
           </button>
         </div>
       </div>
 
       {/* 2. 오른쪽 지도 영역 */}
       <div className="flex-1 relative bg-slate-200 overflow-hidden">
-        {/* <div ref={mapElement} className="w-full h-full object-cover" /> */}
-        <Maps/>
+        <Maps 
+          startPlace={selectedStartPlace ? { lat: selectedStartPlace.lat, lng: selectedStartPlace.lng, name: startPoint } : null}
+          destPlace={selectedDestPlace ? { lat: selectedDestPlace.lat, lng: selectedDestPlace.lng, name: destination } : null}
+          alternatives={[]}
+          routeSegments={[]}
+        />
 
         {/* 3. 지도 위 상단 바 */}
-        <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center gap-6">
-          <div className={`flex-1 h-14 rounded-full shadow-lg overflow-hidden backdrop-blur-md px-6 ${isDarkMode ? 'bg-slate-800/90 border border-slate-700 text-slate-200' : 'bg-white/90 border border-slate-100 text-slate-700'}`}>
+        <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center gap-6 pointer-events-none">
+          <div className={`flex-1 h-14 rounded-full shadow-lg overflow-hidden backdrop-blur-md px-6 pointer-events-auto ${isDarkMode ? 'bg-slate-800/90 border border-slate-700 text-slate-200' : 'bg-white/90 border border-slate-100 text-slate-700'}`}>
             <div className="flex flex-col transition-transform duration-500 ease-in-out" style={{ transform: `translateY(-${tickerIndex * 56}px)` }}>
-              {seoulData.length === 0 ? (
+              {displayData.length === 0 ? (
                 <div className="h-14 w-full flex items-center justify-center text-sm font-semibold text-slate-400">실시간 도시 데이터를 불러오는 중입니다...</div>
               ) : (
-                seoulData.map((item, idx) => (
+                displayData.map((item, idx) => (
                   <div key={idx} className="h-14 w-full flex items-center justify-center gap-3 shrink-0 text-sm font-semibold">
                     <span className="font-black text-emerald-500">{item.district}</span>
                     <span className={`px-2 py-0.5 rounded-md text-xs text-white ${item.congestion.includes('붐빔') || item.congestion.includes('혼잡') ? 'bg-rose-500' : item.congestion.includes('보통') ? 'bg-amber-500' : 'bg-blue-500'}`}>{item.congestion}</span>
@@ -226,8 +466,8 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
             </div>
           </div>
 
-          <div className="relative" ref={dropdownRef}>
-            <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className={`h-14 flex items-center gap-3 pr-2 pl-5 rounded-full shadow-lg backdrop-blur-md transition-all active:scale-95 ${isDarkMode ? 'bg-slate-800/90 border border-slate-700 hover:bg-slate-700' : 'bg-white/90 border border-slate-100 hover:bg-slate-50'}`}>
+          <div className="relative pointer-events-auto" ref={dropdownRef}>
+            <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className={`h-14 flex items-center gap-3 pr-2 pl-5 rounded-full shadow-lg backdrop-blur-md transition-all active:scale-95 border ${isDarkMode ? 'bg-slate-800/90 border border-slate-700 hover:bg-slate-700' : 'bg-white/90 border border-slate-100 hover:bg-slate-50'}`}>
               <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>최서영</span>
               <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 border-2 border-emerald-500 shrink-0">
                 <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Seoyoung" alt="profile" />
@@ -237,29 +477,12 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
             {isDropdownOpen && (
               <div className={`absolute right-0 mt-3 w-56 rounded-3xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 p-2 border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'}`}>
                 <div className={`flex p-1 mb-2 rounded-2xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
-                  <button 
-                    onClick={() => isDarkMode && toggleDarkMode()} 
-                    className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${!isDarkMode ? 'bg-white text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                  >
-                    <Sun size={18} />
-                  </button>
-                  <button 
-                    onClick={() => !isDarkMode && toggleDarkMode()} 
-                    className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-slate-700 text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    <Moon size={18} />
-                  </button>
+                  <button onClick={() => isDarkMode && toggleDarkMode()} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${!isDarkMode ? 'bg-white text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}><Sun size={18} /></button>
+                  <button onClick={() => !isDarkMode && toggleDarkMode()} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-slate-700 text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Moon size={18} /></button>
                 </div>
-
-                <button onClick={() => { onGoToMyPage(); setIsDropdownOpen(false); }} className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
-                  <User size={18} className="text-emerald-500" />
-                  <span className="text-sm font-semibold">마이페이지</span>
-                </button>
+                <button onClick={() => { onGoToMyPage(); setIsDropdownOpen(false); }} className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}><User size={18} className="text-emerald-500" /><span className="text-sm font-semibold">마이페이지</span></button>
                 <div className={`h-px w-full my-1 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`} />
-                <button className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors text-rose-500 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
-                  <LogOut size={18} />
-                  <span className="text-sm font-semibold">로그아웃</span>
-                </button>
+                <button className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors text-rose-500 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}><LogOut size={18} /><span className="text-sm font-semibold">로그아웃</span></button>
               </div>
             )}
           </div>

@@ -5,19 +5,22 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import MainMapPage from './pages/MainMapPage';
 import ResultPage from './pages/ResultPage';
+import { api } from './api/client'; // 기존 단일 predictBatch 메서드만 뚫려있던 객체
 
 interface SearchParams {
   startPoint: string;
   destination: string;
   maxHours: string;
   maxMinutes: string;
+  places?: any[]; 
+  day?: number;   
+  hour?: number;  
 }
 
 type PageType = 'login' | 'signup' | 'mainmap' | 'mypage' | 'result';
 
 const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
 
-// 전체 25개 구 API 타겟 매핑 (App에서 통합 관리)
 const DISTRICT_MAPPING = [
   { district: '강남구', areaNm: '강남역' }, { district: '강동구', areaNm: '천호역' },
   { district: '강북구', areaNm: '미아사거리역' }, { district: '강서구', areaNm: '서울식물원·마곡나루역' },
@@ -55,7 +58,7 @@ function App() {
     };
   });
 
-  // 전역 서울시 API 데이터 상태
+  const [backendPredictionResult, setBackendPredictionResult] = useState<any>(null);
   const [seoulData, setSeoulData] = useState<any[]>([]);
   const [isSeoulDataLoading, setIsSeoulDataLoading] = useState(true);
 
@@ -71,7 +74,6 @@ function App() {
     localStorage.setItem('searchParams', JSON.stringify(searchParams));
   }, [searchParams]);
 
-  // App 마운트 시 최초 1회만 API 호출
   useEffect(() => {
     const fetchCityData = async () => {
       setIsSeoulDataLoading(true);
@@ -110,13 +112,85 @@ function App() {
     setIsDarkMode((prev) => !prev);
   };
 
-  const handleStartAnalysis = (params: SearchParams) => {
+  // ⏪ 원래의 안정적인 더미 믹싱 분석 엔진으로 복구
+  const handleStartAnalysis = async (params: any) => {
     setSearchParams(params);
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setIsAnalyzing(false);
+
+    try {
+      // 1. 기존의 단일 예측 API 호출 진행 (혹시 서버 켜졌을 때 연동 유지)
+      const response = await api.predictBatch({
+        places: params.places,
+        day: params.day,
+        hour: params.hour
+      });
+
+      // 2. 출발지와 도착지 좌표 사이에 50개의 미세 경로 디테일 라인을 동적으로 쪼개서 채워 넣기
+      const startLat = params.places[0].lat;
+      const startLng = params.places[0].lng;
+      const destLat = params.places[1].lat;
+      const destLng = params.places[1].lng;
+
+      const simulatedCoordinates: Array<[number, number]> = [];
+      const steps = 50;
+      
+      for (let i = 0; i <= steps; i++) {
+        const ratio = i / steps;
+        const currentLat = startLat + (destLat - startLat) * ratio;
+        const currentLng = startLng + (destLng - startLng) * ratio;
+        simulatedCoordinates.push([currentLat, currentLng]);
+      }
+
+      // 3. 지도가 인식할 수 있도록 더미 데이터를 포함하여 고유 규격 포맷 패키징
+      const combinedData = {
+        ...response,
+        verdict: response.results[1].prediction > 40 ? "WARNING" : "PASS",
+        p_success: response.results[1].prediction > 40 ? 0.62 : 0.94,
+        segments: [
+          { polyline: simulatedCoordinates }
+        ],
+        alternatives: response.results[1].prediction > 40 ? [
+          { name: `${params.destination} 우회 대안 카페 대시보드`, t_travel: 12, p_success: 0.88, place_type: 'cafe' },
+          { name: `${params.destination} 인근 한산한 도심 스팟`, t_travel: 18, p_success: 0.82, place_type: 'tourist' }
+        ] : []
+      };
+
+      console.log("🔥 이전 데모용 가동 파이프라인 데이터 결합 성공:", combinedData);
+      
+      setBackendPredictionResult(combinedData);
       setCurrentPage('result');
-    }, 4000);
+
+    } catch (error: any) {
+      console.error("🚨 백엔드 통신 실패 (더미 가동 전환):", error);
+      
+      // 💡 [방어 코드 추가] 백엔드가 안 켜져 있어도 데모가 가능하도록 완벽하게 로컬 가짜 데이터로 우회시킵니다!
+      const startLat = params.places?.[0]?.lat || 37.5445;
+      const startLng = params.places?.[0]?.lng || 126.9056;
+      const destLat = params.places?.[1]?.lat || 37.5489;
+      const destLng = params.places?.[1]?.lng || 126.9123;
+
+      const simulatedCoordinates: Array<[number, number]> = [];
+      for (let i = 0; i <= 50; i++) {
+        const ratio = i / 50;
+        simulatedCoordinates.push([startLat + (destLat - startLat) * ratio, startLng + (destLng - startLng) * ratio]);
+      }
+
+      const dummyFallback = {
+        verdict: "WARNING",
+        p_success: 0.58,
+        results: params.places,
+        segments: [{ polyline: simulatedCoordinates }],
+        alternatives: [
+          { name: `${params.destination || '목적지'} 대신 가기 좋은 우회 플레이스`, t_travel: 11, p_success: 0.89, place_type: 'cafe' },
+          { name: `${params.destination || '목적지'} 근처 쾌적한 힐링 장소`, t_travel: 15, p_success: 0.84, place_type: 'walk' }
+        ]
+      };
+
+      setBackendPredictionResult(dummyFallback);
+      setCurrentPage('result');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   if (isAnalyzing) return (
@@ -168,6 +242,7 @@ function App() {
       {currentPage === 'result' && (
         <ResultPage 
           searchParams={searchParams}
+          backendResult={backendPredictionResult} 
           onBack={() => setCurrentPage('mainmap')} 
           onGoToMyPage={() => setCurrentPage('mypage')}
           isDarkMode={isDarkMode}
