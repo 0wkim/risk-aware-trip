@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Mail, Lock, MapPin, ArrowRight } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 import { RiKakaoTalkFill } from 'react-icons/ri';
@@ -10,6 +10,44 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email || !password) {
+      setError('이메일과 비밀번호를 모두 입력해주세요.');
+      return;
+    }
+
+    // 로컬스토리지 가상 가입 유저 풀(DB) 조회
+    const users = JSON.parse(localStorage.getItem('user_db') || '[]');
+    const user = users.find((u: any) => u.email === email && u.password === password);
+
+    // 디버깅 및 개발 편의용 마스터 계정 허용 (최서영 마이페이지용 기본 데이터 매칭)
+    const isMasterAccount = email === 'seoyoung8939@gmail.com' && password === '1234';
+
+    if (user || isMasterAccount) {
+      const loggedInUser = user || { name: '최서영', email: 'seoyoung8939@gmail.com' };
+      
+      // 쿠키처럼 만료일 관리를 위한 로컬스토리지 세션 패키징
+      const sessionData = {
+        userId: loggedInUser.email,
+        userName: loggedInUser.name,
+        expiresAt: rememberMe ? Date.now() + 7 * 24 * 60 * 60 * 1000 : Date.now() + 1 * 24 * 60 * 60 * 1000 // 7일 vs 1일 가상 쿠키 만료일
+      };
+      
+      localStorage.setItem('user_session', JSON.stringify(sessionData));
+      onLogin(); // App.tsx의 마이페이지 뷰 체인 트리거
+    } else {
+      setError('등록되지 않은 이메일이거나 비밀번호가 일치하지 않습니다.');
+    }
+  };
+
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-colors duration-500 ${
       isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'
@@ -32,7 +70,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
         isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'
       }`}>
         {/* 탭 전환 버튼 */}
-        <div className={`p-1.5 rounded-full flex gap-1 mb-10 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+        <div className={`p-1.5 rounded-full flex gap-1 mb-8 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
           <button className={`flex-1 py-3.5 rounded-full font-black text-sm transition-all shadow-sm ${
             isDarkMode ? 'bg-slate-700 text-emerald-400' : 'bg-white text-emerald-600'
           }`}>
@@ -48,13 +86,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
           </button>
         </div>
 
+        {error && (
+          <div className="mb-4 text-xs font-bold text-rose-500 bg-rose-500/10 p-3.5 rounded-xl text-center border border-rose-500/20">
+            {error}
+          </div>
+        )}
+
         {/* 입력 폼 */}
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative group">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
             <input 
               type="email" 
               placeholder="이메일" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
                 isDarkMode 
                   ? 'bg-slate-800 border-slate-700 focus:border-emerald-500/50 text-white' 
@@ -68,6 +114,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
             <input 
               type="password" 
               placeholder="비밀번호" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
                 isDarkMode 
                   ? 'bg-slate-800 border-slate-700 focus:border-emerald-500/50 text-white' 
@@ -75,24 +123,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
               }`}
             />
           </div>
-        </div>
 
-        {/* 보조 도구 */}
-        <div className="flex items-center justify-between mt-5 px-1">
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />
-            <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>로그인 유지</span>
-          </label>
-          <button className="text-xs text-emerald-500 font-black hover:underline uppercase tracking-tighter">비밀번호 찾기</button>
-        </div>
+          {/* 보조 도구 */}
+          <div className="flex items-center justify-between mt-5 px-1">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input 
+                type="checkbox" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 accent-emerald-500" 
+              />
+              <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>로그인 유지</span>
+            </label>
+            <button type="button" className="text-xs text-emerald-500 font-black hover:underline uppercase tracking-tighter">비밀번호 찾기</button>
+          </div>
 
-        {/* 로그인 버튼 */}
-        <button 
-          onClick={onLogin}
-          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-[1.5rem] font-black text-sm mt-8 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
-        >
-          Get Started <ArrowRight size={18} />
-        </button>
+          {/* 로그인 버튼 */}
+          <button 
+            type="submit"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-[1.5rem] font-black text-sm mt-8 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
+          >
+            Get Started <ArrowRight size={18} />
+          </button>
+        </form>
 
         {/* 구분선 */}
         <div className="relative my-10 text-center">
@@ -106,14 +159,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
 
         {/* 소셜 로그인 - 가로 평행 배치 */}
         <div className="grid grid-cols-2 gap-3">
-          <button className={`flex items-center justify-center gap-2 py-4 border rounded-2xl font-bold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] ${
+          <button onClick={onLogin} type="button" className={`flex items-center justify-center gap-2 py-4 border rounded-2xl font-bold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] ${
             isDarkMode ? 'border-slate-700 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 shadow-sm'
           }`}>
             <FcGoogle size={20} /> 
             <span>Google</span>
           </button>
           
-          <button className="flex items-center justify-center gap-2 py-4 bg-[#FEE500] rounded-2xl font-bold text-xs text-[#3C1E1E] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm">
+          <button onClick={onLogin} type="button" className="flex items-center justify-center gap-2 py-4 bg-[#FEE500] rounded-2xl font-bold text-xs text-[#3C1E1E] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm">
             <RiKakaoTalkFill size={20} /> 
             <span>Kakao</span>
           </button>

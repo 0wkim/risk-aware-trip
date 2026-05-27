@@ -62,6 +62,28 @@ function App() {
   const [seoulData, setSeoulData] = useState<any[]>([]);
   const [isSeoulDataLoading, setIsSeoulDataLoading] = useState(true);
 
+  // ── 🛡️ [추가] 가상 쿠키 기반 세션 라이프사이클 체크 가드 ──
+  useEffect(() => {
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      try {
+        const { expiresAt } = JSON.parse(session);
+        // 가상 쿠키 유효시간이 만료되었다면 세션 파괴 후 로그인 페이지로 튕겨내기
+        if (Date.now() > expiresAt) {
+          localStorage.removeItem('user_session');
+          setCurrentPage('login');
+        }
+      } catch (e) {
+        console.error("Session parse error:", e);
+      }
+    } else {
+      // 세션이 없는데 메인 콘텐츠 진입을 막기 위한 방어선 (초기 진입용)
+      if (currentPage !== 'login' && currentPage !== 'signup') {
+        setCurrentPage('login');
+      }
+    }
+  }, [currentPage]);
+
   useEffect(() => {
     localStorage.setItem('currentPage', currentPage);
   }, [currentPage]);
@@ -230,6 +252,10 @@ function App() {
       {currentPage === 'mypage' && (
         <MyPage 
           onGoToMap={() => setCurrentPage('mainmap')} 
+          onLogout={() => {
+            localStorage.removeItem('user_session'); // 🛠️ 가상 쿠키(세션) 디스크 파괴 제거
+            setCurrentPage('login');                // 🛠️ 로그인 뷰로 브랜치 이동
+          }} 
           isExternalDarkMode={isDarkMode}
           toggleDarkMode={toggleDarkMode} 
           seoulData={seoulData}

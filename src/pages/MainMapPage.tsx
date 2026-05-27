@@ -92,6 +92,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
     return 'other';
   };
 
+  // ── 💡 [백엔드 규격 맞춤]: 0=월요일 ~ 6=일요일을 정확히 준수하는 정수형 요일 처리 ──
   const toBackendDay = (date: Date): number => (date.getDay() + 6) % 7;
 
   const handleInputChange = (keyword: string, type: 'start' | 'dest' | 'fav') => {
@@ -208,19 +209,49 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
     }
   };
 
+  // ── 🎯 디자인 원본을 완벽히 지키며, 백엔드 데이터 전송 규격을 엄격하게 맞춘 공간 ──
   const handleSearchClick = () => {
     const now = new Date();
     if (!selectedStartPlace || !selectedDestPlace) {
       alert("출발지와 도착지를 검색 결과 리스트에서 정확히 선택해주세요.");
       return;
     }
+
+    // [마이페이지 실시간 연동 로직]
+    const currentHistory = JSON.parse(localStorage.getItem('search_history') || '[]');
+    const formattedDate = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    currentHistory.push({
+      id: `hist-${Date.now()}`,
+      startPoint: startPoint,
+      destination: destination,
+      date: formattedDate
+    });
+    localStorage.setItem('search_history', JSON.stringify(currentHistory));
+
+    // 💡 [치명적 에러 해결선]: 백엔드가 100% 신뢰할 수 있는 데이터 구조로 캐스팅하여 주입
     onSearch({
       startPoint: startPoint, 
       destination: destination,
-      places: [selectedStartPlace, selectedDestPlace], 
-      day: toBackendDay(now),
-      hour: now.getHours(),
-      maxHours: Number(maxHours),
+      // 백엔드 Pydantic 검증 오류를 우회하기 위해 단일 category 문자열 처리도 병행할 수 있도록 깔끔한 배열 구조화 전달
+      places: [
+        {
+          lat: Number(selectedStartPlace.lat),
+          lng: Number(selectedStartPlace.lng),
+          place_id: String(selectedStartPlace.place_id),
+          categories: selectedStartPlace.categories,
+          name: String(selectedStartPlace.name)
+        },
+        {
+          lat: Number(selectedDestPlace.lat),
+          lng: Number(selectedDestPlace.lng),
+          place_id: String(selectedDestPlace.place_id),
+          categories: selectedDestPlace.categories,
+          name: String(selectedDestPlace.name)
+        }
+      ], 
+      day: Number(toBackendDay(now)), // 💥 422 오류 원인 제거: 확실하게 정수형 넘버(0~6)로 주입!
+      hour: Number(now.getHours()),   // 확실하게 정수형 넘버로 주입!
+      maxHours: Number(maxHours), 
       maxMinutes: Number(maxMinutes)
     });
   };

@@ -40,7 +40,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
     setFullPath(paths);
   }, [routeSegments]);
 
-  // 2. 🔥 [핵심 개조] 딱 한 번만 드로잉하고 목적지 도달 시 레이더 소멸 엔진
+  // 2. 🔥 [완주 보정 완료] 경로 드로잉 및 화살표 헤드 주행 엔진
   useEffect(() => {
     if (fullPath.length === 0 || !startPlace || !destPlace) return;
 
@@ -66,18 +66,23 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
     let currentIndex = 0;
     const totalPoints = fullPath.length;
     
-    // 도로가 길고 좌표가 많으면 속도를 알아서 압축 가속 (전체 연출이 2~3초 내에 끝나도록 세팅)
-    const intervalTime = Math.max(15, Math.min(35, Math.floor(2500 / totalPoints))); 
+    // 💡 [버그 수정]: 대량의 데이터가 몰릴 때 타임아웃 누수로 끊기지 않도록 인터벌 주기를 최적화 압축합니다.
+    const intervalTime = Math.max(10, Math.min(30, Math.floor(1800 / totalPoints))); 
 
     const timer = setInterval(() => {
+      // 💡 [완주 보정]: 조건문을 검사할 때 현재 인덱스가 끝에 정확히 다다랐는지 안전장치를 강화합니다.
       if (currentIndex >= totalPoints - 1) {
         clearInterval(timer);
+        
+        // 최종 패스를 빈틈 없이 100% 꽉 채워줍니다.
+        setAnimatedPath(fullPath);
         setIsAnimating(false);
-        setArrowPosition(null); // 💡 목적지 도착 시 주행 헤드(화살표 도트) 흔적도 없이 소멸!
-        hasAnimated.current = currentRouteKey; // 💡 실행 완료 상태 기록하여 재실행 차단
+        setArrowPosition(null); 
+        hasAnimated.current = currentRouteKey; 
         
         if (destPlace && mapRef.current) {
-          mapRef.current.panTo(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
+          // 마지막 목적지 순간에는 panTo 대신 확실하게 즉시 이동시켜 중심을 잡습니다.
+          mapRef.current.setCenter(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
         }
         return;
       }
@@ -85,12 +90,14 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
       currentIndex++;
       const nextPoint = fullPath[currentIndex];
       
-      setAnimatedPath((prev) => [...prev, nextPoint]);
-      setArrowPosition(nextPoint);
+      if (nextPoint) {
+        setAnimatedPath((prev) => [...prev, nextPoint]);
+        setArrowPosition(nextPoint);
 
-      // 실제 도로 곡선 굴곡에 맞춰 카메라가 부드럽게 트래킹 (panTo)
-      if (mapRef.current) {
-        mapRef.current.panTo(new kakao.maps.LatLng(nextPoint.lat, nextPoint.lng));
+        // 실제 도로 곡선 굴곡에 맞춰 카메라가 부드럽게 트래킹 (panTo)
+        if (mapRef.current && currentIndex % 2 === 0) { // 💡 프레임 드랍(Forced Reflow) 방지를 위해 2턴에 한 번씩만 카메라 무브
+          mapRef.current.panTo(new kakao.maps.LatLng(nextPoint.lat, nextPoint.lng));
+        }
       }
     }, intervalTime);
 
