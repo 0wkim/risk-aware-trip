@@ -1,7 +1,7 @@
 // src/api/client.ts
 
 // API 베이스 URL 설정 (명세서 가이드라인 반영)
-const PRIMARY_BASE_URL = import.meta.env.VITE_API_CLOUDFLARE || 'https://api.example.trycloudflare.com'; 
+const PRIMARY_BASE_URL = import.meta.env.VITE_API_CLOUDFLARE || 'https://boards-cheapest-has-jets.trycloudflare.com'; 
 const FALLBACK_BASE_URL = import.meta.env.VITE_API_LOCAL || 'http://localhost:8000';
 
 /**

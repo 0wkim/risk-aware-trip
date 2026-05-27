@@ -31,6 +31,16 @@ interface FavoriteItem {
 }
 
 const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initialParams, seoulData }: Props) => {
+  // ── 💡 [안전 장치]: 자바스크립트 호이스팅 에러 차단을 위해 아이콘 매핑 함수를 컴포넌트 최상단으로 격리 배치 ──
+  const getFavoriteIcon = (cat: string) => {
+    switch (cat) {
+      case 'cafe': return <Coffee size={15} />;
+      case 'restaurant': return <Utensils size={15} />;
+      case 'spot': return <Landmark size={15} />;
+      default: return <HelpCircle size={15} />;
+    }
+  };
+
   const [startPoint, setStartPoint] = useState(initialParams.startPoint || '');
   const [destination, setDestination] = useState(initialParams.destination || '');
   const [maxHours, setMaxHours] = useState(initialParams.maxHours || '0');
@@ -43,9 +53,15 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
   const [tickerIndex, setTickerIndex] = useState(0);
 
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedStartPlace, setSelectedStartPlace] = useState<BackendPlace | null>(null);
-  const [selectedDestPlace, setSelectedDestPlace] = useState<BackendPlace | null>(null);
   const [showSearchDropdown, setShowSearchDropdown] = useState<'start' | 'dest' | null>(null);
+
+  // ── 💡 [뒤로가기 방어 코드]: 결과창에서 뒤로 돌아올 때 기존의 위경도 데이터 패키지 세션을 복원 ──
+  const [selectedStartPlace, setSelectedStartPlace] = useState<BackendPlace | null>(() => {
+    return initialParams.places?.[0] || null;
+  });
+  const [selectedDestPlace, setSelectedDestPlace] = useState<BackendPlace | null>(() => {
+    return initialParams.places?.[1] || null;
+  });
 
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
     const saved = localStorage.getItem('custom_favorites');
@@ -79,9 +95,17 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
   const toBackendDay = (date: Date): number => (date.getDay() + 6) % 7;
 
   const handleInputChange = (keyword: string, type: 'start' | 'dest' | 'fav') => {
-    if (type === 'start') setStartPoint(keyword);
-    else if (type === 'dest') setDestination(keyword);
-    else {
+    if (type === 'start') {
+      setStartPoint(keyword);
+      if (selectedStartPlace && keyword !== selectedStartPlace.name) {
+        setSelectedStartPlace(null); 
+      }
+    } else if (type === 'dest') {
+      setDestination(keyword);
+      if (selectedDestPlace && keyword !== selectedDestPlace.name) {
+        setSelectedDestPlace(null);
+      }
+    } else {
       setNewFavName(keyword);
       setFavSelectedPlace(null);
     }
@@ -222,15 +246,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSearchDropdown]);
 
-  const getFavoriteIcon = (cat: string) => {
-    switch (cat) {
-      case 'cafe': return <Coffee size={15} />;
-      case 'restaurant': return <Utensils size={15} />;
-      case 'spot': return <Landmark size={15} />;
-      default: return <HelpCircle size={15} />;
-    }
-  };
-
   return (
     <div className="flex h-full animate-in fade-in duration-700">
       
@@ -334,11 +349,10 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
               </button>
             </div>
 
-            {/* 즐겨찾기 생성 폼 구조 개선 완료 */}
+            {/* 즐겨찾기 생성 폼 구조 */}
             {isAddingFav && (
               <div className={`p-4 rounded-3xl border mb-3 space-y-3.5 animate-in slide-in-from-top-2 duration-200 relative ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
                 
-                {/* ── ✅ [구조 변경 핵심 구역]: 독립 검색 컨테이너 래핑으로 칩 분리 ── */}
                 <div className="space-y-1.5 relative search-container">
                   <div className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">새 장소 키워드 검색</div>
                   <input 
@@ -349,7 +363,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
                     className={`w-full p-2.5 rounded-xl text-xs font-bold outline-none border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}
                   />
 
-                  {/* 💡 카테고리 배너 위로 완벽하게 떨어지는 진짜 '인풋 전용' 자동완성 드롭다운 */}
+                  {/* 인풋 전용 자동완성 드롭다운 */}
                   {newFavName && !favSelectedPlace && searchResults.length > 0 && (
                     <div className={`absolute left-0 right-0 top-[62px] max-h-40 overflow-y-auto rounded-xl shadow-2xl z-[60] border p-1 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'}`}>
                       {searchResults.map((place) => (
@@ -362,7 +376,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
                   )}
                 </div>
 
-                {/* 카테고리 분류가 검색창 팝업에 가려지지 않고 물리적으로 보존됨 */}
+                {/* 카테고리 분류 배너 */}
                 <div className="space-y-1.5">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">장소 카테고리 분류</div>
                   <div className="grid grid-cols-4 gap-1.5">
@@ -394,7 +408,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
               </div>
             )}
 
-            {/* 즐겨찾기 스택 스크롤바 리스트 */}
+            {/* 즐겨찾기 스크롤 리스트 */}
             <div className="space-y-2.5 overflow-y-auto max-h-[260px] pr-1 custom-scrollbar">
               {favorites.length === 0 ? (
                 <div className="text-center py-8 text-xs font-bold text-slate-400 opacity-60">등록된 즐겨찾는 장소가 없습니다.</div>
