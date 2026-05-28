@@ -5,7 +5,7 @@ interface MapsProps {
   startPlace?: { lat: number; lng: number; name: string } | null;
   destPlace?: { lat: number; lng: number; name: string } | null;
   alternatives?: Array<{ lat: number; lng: number; name: string; place_type?: string }>;
-  routeSegments?: Array<{ polyline: Array<[number, number]> }>; // 백엔드가 주는 실제 구불구불한 도로 좌표
+  routeSegments?: Array<{ polyline: Array<[number, number]> }>; 
 }
 
 const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: MapsProps) => {
@@ -19,9 +19,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
   const [animatedPath, setAnimatedPath] = useState<Array<{ lat: number; lng: number }>>([]);
   const [arrowPosition, setArrowPosition] = useState<{ lat: number; lng: number } | null>(null);
   
-  // 무한 반복을 막고 딱 '한 번만' 가동하기 위한 추적 플래그 변수
   const [isAnimating, setIsAnimating] = useState(false);
-  const hasAnimated = useRef<string | null>(null); // 현재 경로 ID를 기억해서 중복 실행 방지
 
   // 1. 실제 구불구불한 도로 폴리라인 배열 평탄화 처리
   useEffect(() => {
@@ -40,17 +38,19 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
     setFullPath(paths);
   }, [routeSegments]);
 
-  // 2. 🔥 [완주 보정 완료] 경로 드로잉 및 화살표 헤드 주행 엔진
+  // 2. 🔥 [무한 반복 버그 종결] 로컬스토리지 기반 최초 1회 애니메이션 잠금 엔진
   useEffect(() => {
     if (fullPath.length === 0 || !startPlace || !destPlace) return;
 
-    // 고유 경로 식별 키 생성 (출발지명+도착지명)
-    const currentRouteKey = `${startPlace.name}-${destPlace.name}`;
+    // 현재 출발지-목적지를 기준으로 한 고유 경로 키 생성
+    const currentRouteKey = `anim_done_${startPointToKey(startPlace.name)}_${startPointToKey(destPlace.name)}`;
     
-    // 💡 [중복 방지 장치] 이미 이 경로에 대해 애니메이션을 보여줬다면 다시 실행하지 않고 최종 선만 유지
-    if (hasAnimated.current === currentRouteKey) {
+    // 💡 [원천 차단 장치]: 컴포넌트가 소멸 후 부활해도 로컬스토리지 기억을 조회하여 이미 끝난 주행이면 패스!
+    const isAlreadyAnimated = localStorage.getItem(currentRouteKey) === "true";
+
+    if (isAlreadyAnimated) {
       setAnimatedPath(fullPath);
-      setArrowPosition(null);
+      setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng }); // 목적지 자리에 고정 대기
       setIsAnimating(false);
       if (mapRef.current) {
         mapRef.current.setCenter(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
@@ -58,7 +58,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
       return;
     }
 
-    // 처음 보여주는 경로라면 애니메이션 가동 시작!
+    // 완전히 처음 보여주는 대안 경로일 때만 인터벌 주행 스타트!
     setAnimatedPath([fullPath[0]]);
     setArrowPosition(fullPath[0]);
     setIsAnimating(true);
@@ -66,22 +66,20 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
     let currentIndex = 0;
     const totalPoints = fullPath.length;
     
-    // 💡 [버그 수정]: 대량의 데이터가 몰릴 때 타임아웃 누수로 끊기지 않도록 인터벌 주기를 최적화 압축합니다.
-    const intervalTime = Math.max(10, Math.min(30, Math.floor(1800 / totalPoints))); 
+    const intervalTime = Math.max(8, Math.min(25, Math.floor(1200 / totalPoints))); 
+    const cameraUpdateStep = Math.max(3, Math.floor(totalPoints / 30));
 
     const timer = setInterval(() => {
-      // 💡 [완주 보정]: 조건문을 검사할 때 현재 인덱스가 끝에 정확히 다다랐는지 안전장치를 강화합니다.
       if (currentIndex >= totalPoints - 1) {
         clearInterval(timer);
-        
-        // 최종 패스를 빈틈 없이 100% 꽉 채워줍니다.
         setAnimatedPath(fullPath);
         setIsAnimating(false);
-        setArrowPosition(null); 
-        hasAnimated.current = currentRouteKey; 
+        setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng }); // 골인 지점에 안착
+        
+        // 💡 주행이 완료되는 순간 로컬스토리지에 영구 각인 처리를 합니다.
+        localStorage.setItem(currentRouteKey, "true");
         
         if (destPlace && mapRef.current) {
-          // 마지막 목적지 순간에는 panTo 대신 확실하게 즉시 이동시켜 중심을 잡습니다.
           mapRef.current.setCenter(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
         }
         return;
@@ -91,11 +89,10 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
       const nextPoint = fullPath[currentIndex];
       
       if (nextPoint) {
-        setAnimatedPath((prev) => [...prev, nextPoint]);
+        setAnimatedPath((prev) => prev.concat(nextPoint));
         setArrowPosition(nextPoint);
 
-        // 실제 도로 곡선 굴곡에 맞춰 카메라가 부드럽게 트래킹 (panTo)
-        if (mapRef.current && currentIndex % 2 === 0) { // 💡 프레임 드랍(Forced Reflow) 방지를 위해 2턴에 한 번씩만 카메라 무브
+        if (mapRef.current && (currentIndex % cameraUpdateStep === 0 || currentIndex === totalPoints - 2)) {
           mapRef.current.panTo(new kakao.maps.LatLng(nextPoint.lat, nextPoint.lng));
         }
       }
@@ -103,6 +100,9 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
 
     return () => clearInterval(timer);
   }, [fullPath, startPlace, destPlace]);
+
+  // 키 값에 공백이나 특수문자가 섞여 영구 디스크 저장 시 깨지는 현상을 방어하는 헬퍼 함수
+  const startPointToKey = (str: string) => str.replace(/[^a-zA-Z0-9가-힣]/g, "");
 
   return (
     <div className="w-full h-full relative">
@@ -112,7 +112,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
         level={4}
         ref={mapRef}
       >
-        {/* 출발지 커스텀 핀 (Deep Blue) */}
+        {/* 출발지 커스텀 핀 */}
         {startPlace && (
           <CustomOverlayMap position={{ lat: startPlace.lat, lng: startPlace.lng }} yAnchor={1}>
             <div className="flex flex-col items-center select-none animate-bounce-short">
@@ -125,7 +125,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
           </CustomOverlayMap>
         )}
 
-        {/* 도착지 커스텀 핀 (Neo Rose) */}
+        {/* 도착지 커스텀 핀 */}
         {destPlace && (
           <CustomOverlayMap position={{ lat: destPlace.lat, lng: destPlace.lng }} yAnchor={1}>
             <div className="flex flex-col items-center select-none animate-bounce-short">
@@ -138,7 +138,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
           </CustomOverlayMap>
         )}
 
-        {/* 대안 장소 스퀘어 핀 레이어 */}
+        {/* 대안 장소 스퀘어 핀 */}
         {alternatives.map((alt, idx) => (
           <CustomOverlayMap key={`alt-layer-${idx}`} position={{ lat: alt.lat, lng: alt.lng }} yAnchor={1}>
             <div className="flex flex-col items-center select-none transition-all duration-300 hover:scale-105">
@@ -151,7 +151,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
           </CustomOverlayMap>
         ))}
 
-        {/* 실제 도로를 따라 한 칸씩 늘어나는 드로잉 라인 */}
+        {/* 실제 도로 드로잉 라인 */}
         {animatedPath.length > 0 && (
           <Polyline
             path={[animatedPath]}
@@ -162,11 +162,11 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
           />
         )}
 
-        {/* 선의 맨 앞머리에서만 레이싱하듯 달리다가 목적지 도착 시 소멸되는 도트 헤드 */}
-        {isAnimating && arrowPosition && (
+        {/* 목적지에 정지해 있는 화살표 도트 헤드 */}
+        {arrowPosition && (
           <CustomOverlayMap position={arrowPosition} zIndex={50}>
             <div className="relative flex items-center justify-center">
-              <div className="absolute w-8 h-8 bg-emerald-400 rounded-full animate-ping opacity-40" />
+              {isAnimating && <div className="absolute w-8 h-8 bg-emerald-400 rounded-full animate-ping opacity-40" />}
               <div className="w-5 h-5 bg-emerald-500 rounded-full border-2 border-white shadow-[0_0_15px_#10b981] flex items-center justify-center">
                 <div className="w-1.5 h-1.5 border-t-2 border-r-2 border-white transform rotate-45 -ml-[1px]" />
               </div>

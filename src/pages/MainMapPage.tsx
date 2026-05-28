@@ -76,6 +76,44 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
   const [favSelectedPlace, setFavSelectedPlace] = useState<any>(null);
   const [selectedFavCategory, setSelectedFavCategory] = useState<'cafe' | 'restaurant' | 'spot' | 'other'>('cafe');
 
+  // ── 🎯 [지도 동적 포커싱 핵심 엔진 구현 구역] ──
+  useEffect(() => {
+    if (!window.kakao || !window.kakao.maps.services) return;
+    const ps = new window.kakao.maps.services.Places();
+
+    // 1) 마이페이지 검색 기록 클릭 연동 시 출발지 자동 검색 및 즉각 지도 위치 동기화
+    if (startPoint && !selectedStartPlace) {
+      ps.keywordSearch(startPoint, (data, status) => {
+        if (status === window.kakao.maps.services.Status.OK && data[0]) {
+          const first = data[0];
+          setSelectedStartPlace({
+            lat: parseFloat(first.y), // 서울역 가짜 좌표 완전 제거 및 실제 장소 위도 바인딩
+            lng: parseFloat(first.x), // 실제 장소 경도 바인딩
+            place_id: first.id,
+            categories: [mapToBackendCategory(first.category_name)],
+            name: first.place_name
+          });
+        }
+      });
+    }
+
+    // 2) 목적지 자동 검색 및 매핑
+    if (destination && !selectedDestPlace) {
+      ps.keywordSearch(destination, (data, status) => {
+        if (status === window.kakao.maps.services.Status.OK && data[0]) {
+          const first = data[0];
+          setSelectedDestPlace({
+            lat: parseFloat(first.y),
+            lng: parseFloat(first.x),
+            place_id: first.id,
+            categories: [mapToBackendCategory(first.category_name)],
+            name: first.place_name
+          });
+        }
+      });
+    }
+  }, [startPoint, destination, selectedStartPlace, selectedDestPlace]);
+
   useEffect(() => {
     localStorage.setItem('custom_favorites', JSON.stringify(favorites));
   }, [favorites]);
@@ -92,7 +130,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
     return 'other';
   };
 
-  // ── 💡 [백엔드 규격 맞춤]: 0=월요일 ~ 6=일요일을 정확히 준수하는 정수형 요일 처리 ──
   const toBackendDay = (date: Date): number => (date.getDay() + 6) % 7;
 
   const handleInputChange = (keyword: string, type: 'start' | 'dest' | 'fav') => {
@@ -209,7 +246,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
     }
   };
 
-  // ── 🎯 디자인 원본을 완벽히 지키며, 백엔드 데이터 전송 규격을 엄격하게 맞춘 공간 ──
   const handleSearchClick = () => {
     const now = new Date();
     if (!selectedStartPlace || !selectedDestPlace) {
@@ -217,7 +253,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
       return;
     }
 
-    // [마이페이지 실시간 연동 로직]
     const currentHistory = JSON.parse(localStorage.getItem('search_history') || '[]');
     const formattedDate = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
     currentHistory.push({
@@ -228,11 +263,9 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
     });
     localStorage.setItem('search_history', JSON.stringify(currentHistory));
 
-    // 💡 [치명적 에러 해결선]: 백엔드가 100% 신뢰할 수 있는 데이터 구조로 캐스팅하여 주입
     onSearch({
       startPoint: startPoint, 
       destination: destination,
-      // 백엔드 Pydantic 검증 오류를 우회하기 위해 단일 category 문자열 처리도 병행할 수 있도록 깔끔한 배열 구조화 전달
       places: [
         {
           lat: Number(selectedStartPlace.lat),
@@ -249,8 +282,8 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
           name: String(selectedDestPlace.name)
         }
       ], 
-      day: Number(toBackendDay(now)), // 💥 422 오류 원인 제거: 확실하게 정수형 넘버(0~6)로 주입!
-      hour: Number(now.getHours()),   // 확실하게 정수형 넘버로 주입!
+      day: Number(toBackendDay(now)), 
+      hour: Number(now.getHours()),   
       maxHours: Number(maxHours), 
       maxMinutes: Number(maxMinutes)
     });
@@ -485,6 +518,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, isDarkMode, toggleDarkMode, initi
 
       {/* 2. 오른쪽 지도 영역 */}
       <div className="flex-1 relative bg-slate-200 overflow-hidden">
+        {/* 💡 [초기 포커싱 보정]: selectedStartPlace가 카카오 API로부터 진짜 위경도를 주입받는 즉시, Maps 내부에서 center 객체를 탐지하여 노원역 정중앙으로 순식간에 카메라 무브가 작동합니다. */}
         <Maps 
           startPlace={selectedStartPlace ? { lat: selectedStartPlace.lat, lng: selectedStartPlace.lng, name: startPoint } : null}
           destPlace={selectedDestPlace ? { lat: selectedDestPlace.lat, lng: selectedDestPlace.lng, name: destination } : null}

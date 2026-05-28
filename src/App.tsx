@@ -62,13 +62,12 @@ function App() {
   const [seoulData, setSeoulData] = useState<any[]>([]);
   const [isSeoulDataLoading, setIsSeoulDataLoading] = useState(true);
 
-  // ── 🛡️ [추가] 가상 쿠키 기반 세션 라이프사이클 체크 가드 ──
+  // ── 🛡️ 가상 쿠키 기반 세션 라이프사이클 체크 가드 ──
   useEffect(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
       try {
         const { expiresAt } = JSON.parse(session);
-        // 가상 쿠키 유효시간이 만료되었다면 세션 파괴 후 로그인 페이지로 튕겨내기
         if (Date.now() > expiresAt) {
           localStorage.removeItem('user_session');
           setCurrentPage('login');
@@ -77,7 +76,6 @@ function App() {
         console.error("Session parse error:", e);
       }
     } else {
-      // 세션이 없는데 메인 콘텐츠 진입을 막기 위한 방어선 (초기 진입용)
       if (currentPage !== 'login' && currentPage !== 'signup') {
         setCurrentPage('login');
       }
@@ -134,7 +132,7 @@ function App() {
     setIsDarkMode((prev) => !prev);
   };
 
-  // ── 🎯 [핵심 전면 개조 구역]: 가짜 데이터 완전 차단 및 진짜 리얼 AI 서버 파이프라인 결합 ──
+  // ── 🎯 [멀티모드 경로 결합 엔진 개조] ──
   const handleStartAnalysis = async (params: any) => {
     setSearchParams(params);
     setIsAnalyzing(true);
@@ -145,15 +143,15 @@ function App() {
 
       // 2) 백엔드 1단계: 코스 시뮬레이션 완주 성능 평가 (/api/evaluate-course)
       const courseEvaluation = await api.evaluateCourse({
-        waypoints: params.places, // 유저가 선택한 [출발지 장소 객체, 도착지 장소 객체]
+        waypoints: params.places, 
         T_max: totalBudgetMinutes,
-        day: params.day, // JavaScript 기반 보정 완료된 요일 코드 정수 (0=월~6=일)
+        day: params.day, 
         hour: params.hour
       });
 
       let finalAlternatives: any[] = [];
 
-      // 3) 백엔드 2단계: 만약 정체 혹은 완주 위험도가 발견될 경우 실시간 우회 대안지 추출 (/api/alternatives)
+      // 3) 백엔드 2단계: 실시간 우회 대안지 추출 (/api/alternatives)
       if (courseEvaluation.verdict !== 'PASS' && courseEvaluation.failed_indices && courseEvaluation.failed_indices.length > 0) {
         const failedIndex = courseEvaluation.failed_indices[0];
 
@@ -164,30 +162,48 @@ function App() {
           course_waypoints: params.places,
           failed_index: failedIndex,
           T_max: totalBudgetMinutes,
-          radius_m: 500, // 명세서 표준 탐색 필터 스펙 500m 고정
+          radius_m: 500, 
           top_k: 5
         });
 
         finalAlternatives = alternativesResponse.alternatives || [];
       }
 
-      // 4) 백엔드 3단계: 카카오 내비 인프라망 기반 실제 도로망 위경도 점 배열 묶음 반환 (/api/route)
+      // 4) 백엔드 3단계: 복합 수단(지하철 + 버스 + 도보 + 자동차) 멀티모드 동적 결합 추출 레이어 개조
       const routeCoords = params.places.map((p: any) => [p.lat, p.lng]);
+      
+      // 💡 거리가 가깝거나(약 1.5km 이내) 예산 시간이 짧으면 도보/대중교통('transit')을 결합하고, 
+      // 💡 장거리 노선이거나 빠른 이동이 필요할 때는 자동차('car') 노선망을 하이브리드로 자동 채택하는 프론트 가드 로직
+      let optimalMode: 'walking' | 'transit' | 'car' = 'transit'; 
+      
+      if (routeCoords.length >= 2) {
+        const latDiff = Math.abs(routeCoords[0][0] - routeCoords[1][0]);
+        const lngDiff = Math.abs(routeCoords[0][1] - routeCoords[1][1]);
+        // 대략적인 직선거리가 멀고 예산 시간이 타이트하면 car 모드로 전환해 결합 유도
+        if (latDiff > 0.04 || lngDiff > 0.04) {
+          optimalMode = totalBudgetMinutes < 40 ? 'car' : 'transit';
+        } else if (latDiff < 0.008 && lngDiff < 0.008) {
+          optimalMode = 'walking';
+        }
+      }
+
       const routeData = await api.getRoute({
-        coords: routeCoords, // [[출발지위도, 출발지경도], [도착지위도, 도착지경도]]
-        mode: 'walking' // 도보 중심 가이드라인 세팅 고정
+        coords: routeCoords, 
+        mode: optimalMode, // 👈 'walking' 고정을 파괴하고 transit/car/walking 다중 결합 주입
+        day: params.day,   // 명세서 규격에 따른 요일 주입
+        hour: params.hour  // 명세서 규격에 따른 시간표 동기화용 시각 주입
       });
 
-      // 5) Maps.tsx와 ResultPage.tsx 규격에 100% 매칭되는 실제 데이터 가용성 패키징 바인딩
+      // 5) Maps.tsx와 ResultPage.tsx 규격 바인딩
       const unifiedDashboardData = {
-        verdict: courseEvaluation.verdict, // PASS, WARNING, FAIL 상단 메인 배너 동적 연동
-        p_success: courseEvaluation.p_success, // 완주 연산 스코어 퍼센트 반사
+        verdict: courseEvaluation.verdict, 
+        p_success: courseEvaluation.p_success, 
         results: params.places,
-        alternatives: finalAlternatives, // 'name' 키 누수가 완벽하게 증발하여 모달에 이름이 뜨는 진짜 대안 배열 데이터
-        route_segments: routeData.segments // Maps.tsx 내부 .flatMap() 엔진이 완벽 추적해 낼 구불구불한 인프라 도로선 배열
+        alternatives: finalAlternatives, 
+        route_segments: routeData.segments 
       };
 
-      console.log("🎯 백엔드 Cloudflare 리얼 터널 엔진 원격 동기화 완벽 성공:", unifiedDashboardData);
+      console.log(`🎯 백엔드 [${optimalMode.toUpperCase()}] 멀티모드 최적 경로 동기화 완벽 성공:`, unifiedDashboardData);
       
       setBackendPredictionResult(unifiedDashboardData);
       setCurrentPage('result');
@@ -195,7 +211,6 @@ function App() {
     } catch (error: any) {
       console.error("🚨 백엔드 AI 통신 치명적 에러 발생:", error);
       
-      // 최후의 보루용 클라이언트 복구 가공 Fallback (네트워크 유실 및 완전 오프라인 상황 방어 장치)
       const startPlace = params.places?.[0];
       const destPlace = params.places?.[1];
       
@@ -252,9 +267,18 @@ function App() {
       {currentPage === 'mypage' && (
         <MyPage 
           onGoToMap={() => setCurrentPage('mainmap')} 
+          onSelectHistory={(start, dest) => {
+            setSearchParams((prev) => ({
+              ...prev,
+              startPoint: start,
+              destination: dest,
+              places: undefined
+            }));
+            setCurrentPage('mainmap'); 
+          }}
           onLogout={() => {
-            localStorage.removeItem('user_session'); // 🛠️ 가상 쿠키(세션) 디스크 파괴 제거
-            setCurrentPage('login');                // 🛠️ 로그인 뷰로 브랜치 이동
+            localStorage.removeItem('user_session'); 
+            setCurrentPage('login');                
           }} 
           isExternalDarkMode={isDarkMode}
           toggleDarkMode={toggleDarkMode} 

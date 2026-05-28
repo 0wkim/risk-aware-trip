@@ -44,6 +44,7 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── 👤 로컬스토리지의 user_session에서 동적으로 유저 데이터 로드 ──
+  // 기본값 설정 부분 (컴포넌트 상단)
   const [userInfo, setUserInfo] = useState(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
@@ -53,7 +54,8 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
           name: parsed.userName || '사용자',
           email: parsed.userId || 'unknown@domain.com',
           loginType: parsed.loginType || 'email',
-          department: parsed.department || '데이터 사이언스' // 💡 기본값 설정
+          // 'department' 대신 'travelStyle' 등으로 개념 전환 (기존 키 유지를 위해 데이터값만 변경)
+          department: parsed.department || '여유로운 산책파' 
         };
       } catch (e) {
         console.error(e);
@@ -63,7 +65,7 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
       name: '최서영',
       email: 'seoyoung8939@gmail.com',
       loginType: 'email',
-      department: '데이터 사이언스'
+      department: '여유로운 산책파'
     };
   });
 
@@ -154,7 +156,8 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     if (userInfo.loginType === 'kakao') {
       return <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-[#FEE500]/20 text-[#3C1E1E] dark:text-[#FEE500] border border-[#FEE500]/30">Kakao 연동됨</span>;
     }
-    return <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${isDarkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>일반 회원</span>;
+    // 일반 이메일 로그인일 경우 배지를 렌더링하지 않음
+    return null;
   }, [userInfo.loginType, isDarkMode]);
 
   return (
@@ -262,7 +265,9 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                         <input type="email" className={`w-full p-4 rounded-2xl border bg-transparent outline-none font-bold transition-all ${isDarkMode ? 'border-slate-700 text-white bg-slate-900' : 'border-slate-200 text-slate-800 bg-white'}`} value={userInfo.email} onChange={(e) => handleUpdateUserInfo('email', e.target.value)} />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">사용자 소속 카테고리 (프로필 배지 반영)</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                          나의 여행 및 이동 성향 (프로필 반영)
+                        </label>
                         <select 
                           className={`w-full p-4 rounded-2xl border outline-none font-bold transition-all appearance-none ${
                             isDarkMode ? 'border-slate-700 text-white bg-slate-900 focus:border-emerald-500' : 'border-slate-200 text-slate-800 bg-white focus:border-emerald-500'
@@ -270,11 +275,11 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                           value={userInfo.department} 
                           onChange={(e) => handleUpdateUserInfo('department', e.target.value)}
                         >
-                          <option value="데이터 사이언스">데이터 사이언스 (Data Science)</option>
-                          <option value="컴퓨터 공학">컴퓨터 공학 (Computer Engineering)</option>
-                          <option value="프론트엔드 개발자">프론트엔드 개발자 (Frontend Developer)</option>
-                          <option value="비즈니스 기획">비즈니스 기획 (Business Strategy)</option>
-                          <option value="일반 여행자">일반 여행자 (General Traveler)</option>
+                          <option value="여유로운 산책파">🍃 여유로운 산책파 (한적한 곳 선호)</option>
+                          <option value="핫플레이스 탐험가">🔥 핫플레이스 탐험가 (인기 지역 선호)</option>
+                          <option value="카페/맛집 투어러">☕ 카페·맛집 투어러</option>
+                          <option value="뚜벅이 여행자">🚶‍♂️ 대중교통 중심 뚜벅이</option>
+                          <option value="빠른 이동 최우선">⚡ 번잡해도 무조건 빠른 길</option>
                         </select>
                       </div>
                     </div>

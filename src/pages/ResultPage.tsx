@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { 
   ChevronLeft, Clock, Navigation, CheckCircle2, AlertTriangle, XCircle,
-  MapPin, CloudSun, Sun, Moon, LogOut, User, ArrowRight, Sparkles, X, Phone, Star, Info
+  MapPin, CloudSun, Sun, Moon, LogOut, User, ArrowRight, Sparkles, X, Phone, Star, Info,
+  Car, Train, Footprints
 } from 'lucide-react';
 import Maps from '../Maps/Maps';
 
@@ -25,12 +26,58 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
   const maxMinutes = searchParams?.maxMinutes || '0';
 
   const [tickerIndex, setTickerIndex] = useState(0);
-
-  // ── 💡 [핵심 추가 1] 상세 POI 정보 조회를 위한 모달 제어 상태 변수 ──
   const [selectedPoi, setSelectedPoi] = useState<any | null>(null);
 
+  // seoulData 안전 검증 레이어
   const targetDistricts = ['강남구', '마포구', '종로구', '성동구', '영등포구', '송파구'];
-  const displayData = seoulData ? seoulData.filter(item => targetDistricts.includes(item.district)) : [];
+  const displayData = Array.isArray(seoulData) 
+    ? seoulData.filter(item => item && item.district && targetDistricts.includes(item.district)) 
+    : [];
+
+  // ── 💡 [버그 종결 가드 1]: useMemo를 사용하여 routeSegments 데이터의 메모리 참조 주소를 강제로 묶어 고정합니다.
+  // ── 이렇게 처리하면 ResultPage가 리렌더링되어도 Maps 컴포넌트는 데이터가 전혀 변하지 않은 것으로 인식하여 타이머를 재가동하지 않습니다.
+  const cachedRouteSegments = useMemo(() => {
+    return backendResult?.route_segments || backendResult?.segments || [];
+  }, [backendResult]); // 오직 실제 백엔드 응답 데이터 자체가 통째로 바뀔 때만 재연산
+
+  // ── 💡 [버그 종결 가드 2]: 출발지와 도착지 객체 정보도 동일하게 useMemo 캐싱 고정을 적용합니다.
+  const cachedStartPlace = useMemo(() => {
+    return {
+      lat: backendResult?.results?.[0]?.lat || searchParams?.places?.[0]?.lat || 37.55465,
+      lng: backendResult?.results?.[0]?.lng || searchParams?.places?.[0]?.lng || 126.97059,
+      name: startPoint
+    };
+  }, [backendResult, searchParams, startPoint]);
+
+  const cachedDestPlace = useMemo(() => {
+    return {
+      lat: backendResult?.results?.[1]?.lat || searchParams?.places?.[1]?.lat || 37.55465,
+      lng: backendResult?.results?.[1]?.lng || searchParams?.places?.[1]?.lng || 126.97059,
+      name: destination
+    };
+  }, [backendResult, searchParams, destination]);
+
+  // UI 텍스트 정규화 엔진
+  const detectedVehicle = (() => {
+    if (!backendResult || !searchParams?.places) return { mode: 'transit', label: '대중교통', icon: <Train size={14} className="text-emerald-400" />, themeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+    
+    const places = searchParams.places;
+    if (places.length >= 2) {
+      const latDiff = Math.abs(places[0].lat - places[1].lat);
+      const lngDiff = Math.abs(places[0].lng - places[1].lng);
+      const totalBudgetMinutes = (Number(maxHours) * 60) + Number(maxMinutes);
+
+      if (latDiff > 0.04 || lngDiff > 0.04) {
+        if (totalBudgetMinutes < 40) {
+          return { mode: 'car', label: '자동차', icon: <Car size={14} className="text-indigo-400" />, themeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' };
+        }
+        return { mode: 'transit', label: '대중교통', icon: <Train size={14} className="text-emerald-400" />, themeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+      } else if (latDiff < 0.008 && lngDiff < 0.008) {
+        return { mode: 'walking', label: '도보 이동', icon: <Footprints size={14} className="text-amber-400" />, themeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+      }
+    }
+    return { mode: 'transit', label: '대중교통', icon: <Train size={14} className="text-emerald-400" />, themeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+  })();
 
   useEffect(() => {
     if (displayData.length === 0) return;
@@ -50,7 +97,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // AI 혼잡도 임계값 연산
   const rawVerdict = backendResult?.verdict || 'PASS';
   const successRate = backendResult?.p_success != null ? Math.round(backendResult.p_success * 100) : 92; 
 
@@ -84,21 +130,9 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
     }
   }[verdict];
 
-  // --- [💡 핵심 추가 2] 명세 스펙 충족용 POI 상세 더미 메타데이터 빌더 맵 ──
   let recommendations: any[] = [];
 
-  if (verdict === 'PASS') {
-    recommendations = [
-      { 
-        id: 1, name: `${destination} 근처 핫플 팝업`, time: '동선 내 위치', probability: '여유로움', type: 'TREND',
-        phone: '02-555-1212', rating: '4.8', hours: '11:00 - 21:00', review: '인스타 감성 낭낭하고 웨이팅도 없어서 너무 쾌적해요!'
-      },
-      { 
-        id: 2, name: '이동 경로 상 산책 가로수길', time: '도보 3분 거리', probability: '쾌적함', type: 'WALK',
-        phone: '정보없음', rating: '4.9', hours: '24시간 개방', review: '복잡한 인파 피해서 가볍게 걷기 좋은 우회 산책로입니다.'
-      }
-    ];
-  } else {
+  if (verdict !== 'PASS') {
     const backendAlts = backendResult?.alternatives || [];
     if (backendAlts.length > 0) {
       recommendations = backendAlts.map((alt: any, index: number) => ({
@@ -127,7 +161,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
     <div className={`flex h-full animate-in fade-in slide-in-from-right-10 duration-700 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-white'}`}>
       
       {/* 1. 사이드바 */}
-      <div className={`w-[400px] h-full flex flex-col border-r z-20 shadow-2xl transition-all duration-500 ${
+      <div className={`w-[400px] h-full flex flex-col border-r z-10 shadow-2xl transition-all duration-500 ${
         isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'
       }`}>
         <header className="p-6 flex items-center gap-4 border-b border-inherit shrink-0">
@@ -170,10 +204,20 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
                 </div>
 
                 <div className="font-bold text-sm leading-relaxed text-left">
-                  <span className={`block text-[10px] font-black uppercase tracking-widest mb-0.5 ${themeStyles.text}`}>AI 분석 코멘트</span>
+                  <span className={`block text-[10px] font-black uppercase tracking-wildest mb-0.5 ${themeStyles.text}`}>AI 분석 코멘트</span>
                   <p className={`text-xs ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{themeStyles.message}</p>
                 </div>
                 
+                <div className={`flex items-center gap-2 p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/60'}`}>
+                  <span className={`p-2 rounded-xl border flex items-center justify-center shrink-0 ${detectedVehicle.themeClass}`}>
+                    {detectedVehicle.icon}
+                  </span>
+                  <div className="text-left">
+                    <span className="block text-[8px] font-black uppercase tracking-wider text-slate-400">AI 권장 수단</span>
+                    <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{detectedVehicle.label}</span>
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-500/10 text-[11px]">
                    <span className="px-1.5 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 text-[9px] font-black uppercase">설정 시간</span>
                    <span className="font-black text-slate-500 mr-1">{maxHours}시간 {maxMinutes}분</span>
@@ -193,58 +237,60 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
             </div>
           )}
           
-          {/* 하단 카드 리스트 (클릭 시 모달 트리거 바인딩 완료) */}
-          <div className="space-y-4 pb-10">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-wildest ml-1">
-              {verdict === 'PASS' ? '가는 길 보너스 스팟 추천' : 'Recommended Alternatives'}
-            </h3>
-            <div className="space-y-3">
-              {recommendations.map((item) => (
-                <div 
-                  key={item.id} 
-                  onClick={() => setSelectedPoi(item)} // ✅ 클릭하면 해당 POI 패키지 상태값 저장
-                  className={`group p-5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
-                    isDarkMode ? 'bg-slate-800/40 border-slate-700 hover:border-emerald-500/50' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-center gap-4 text-left">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                      item.type === 'TREND' || item.type === 'WALK' ? 'bg-emerald-500 text-white' :
-                      isDarkMode ? 'bg-slate-700 text-slate-400 group-hover:bg-emerald-500 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-white'
-                    }`}>
-                      <MapPin size={18} />
+          {verdict !== 'PASS' && recommendations.length > 0 && (
+            <div className="space-y-4 pb-10 animate-in fade-in duration-300">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-wildest ml-1">
+                Recommended Alternatives
+              </h3>
+              <div className="space-y-3">
+                {recommendations.map((item) => (
+                  <div 
+                    key={item.id} 
+                    onClick={() => setSelectedPoi(item)} 
+                    className={`group p-5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+                      isDarkMode ? 'bg-slate-800/40 border-slate-700 hover:border-emerald-500/50' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 text-left min-w-0 flex-1">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                        isDarkMode ? 'bg-slate-700 text-slate-300 group-hover:bg-emerald-500 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600'
+                      }`}>
+                        {detectedVehicle.mode === 'car' ? <Car size={18} /> : 
+                         detectedVehicle.mode === 'walking' ? <Footprints size={18} /> : <Train size={18} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border border-current ${
+                            isDarkMode ? 'text-emerald-400/70' : 'text-emerald-600/70'
+                          }`}>{item.type}</span>
+                          <h4 className={`font-bold text-sm tracking-tight truncate max-w-[150px] ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{item.name}</h4>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                          <span className="flex items-center gap-1"><Clock size={13} /> {item.time}</span>
+                          <span className={`flex items-center gap-1 font-black ${themeStyles.text}`}><Navigation size={13} /> {item.probability}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border border-current ${
-                          item.type === 'TREND' || item.type === 'WALK' ? 'text-emerald-400 border-emerald-400 bg-emerald-500/10' :
-                          isDarkMode ? 'text-emerald-400/70' : 'text-emerald-600/70'
-                        }`}>{item.type}</span>
-                        <h4 className={`font-bold text-sm tracking-tight truncate w-44 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{item.name}</h4>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
-                        <span className="flex items-center gap-1"><Clock size={13} /> {item.time}</span>
-                        <span className={`flex items-center gap-1 font-black ${themeStyles.text}`}><Navigation size={13} /> {item.probability}</span>
-                      </div>
+                    
+                    <div className={`px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-tight transition-all shrink-0 ${detectedVehicle.themeClass}`}>
+                      {detectedVehicle.mode === 'car' ? '차량이동' : detectedVehicle.mode === 'walking' ? '도보이동' : '대중교통'}
                     </div>
                   </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDarkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-50 text-slate-400'} group-hover:bg-emerald-500 group-hover:text-white group-hover:translate-x-1`}>
-                    <ArrowRight size={15} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* 2. 오른쪽 지도 영역 */}
       <div className="flex-1 relative bg-slate-200 overflow-hidden">
+        {/* 💡 [수정 완료]: useMemo로 완전 고정 처리된 cached 인프라 팩터를 전달하여, 어떠한 상황에서도 무한 루프가 돌지 않게 고정합니다. */}
         <Maps 
-          startPlace={{ lat: backendResult?.results?.[0]?.lat || searchParams?.places?.[0]?.lat || 37.55465, lng: backendResult?.results?.[0]?.lng || searchParams?.places?.[0]?.lng || 126.97059, name: startPoint }}
-          destPlace={{ lat: backendResult?.results?.[1]?.lat || searchParams?.places?.[1]?.lat || 37.55465, lng: backendResult?.results?.[1]?.lng || searchParams?.places?.[1]?.lng || 126.97059, name: destination }}
+          startPlace={cachedStartPlace}
+          destPlace={cachedDestPlace}
           alternatives={verdict === 'PASS' ? [] : (backendResult?.alternatives || [])} 
-          routeSegments={backendResult?.route_segments || backendResult?.segments || []} 
+          routeSegments={cachedRouteSegments} 
         />
 
         {/* 상단 오버레이 헤더 티커 & 유저 허브 */}
@@ -277,7 +323,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
               <div className={`absolute right-0 mt-3 w-56 rounded-3xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 p-2 border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'}`}>
                 <div className={`flex p-1 mb-2 rounded-2xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
                   <button onClick={() => isDarkMode && toggleDarkMode()} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${!isDarkMode ? 'bg-white text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}><Sun size={18} /></button>
-                  <button onClick={() => !isDarkMode && toggleDarkMode()} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-slate-700 text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Moon size={18} /></button>
+                  <button onClick={() => !isDarkMode && toggleDarkMode()} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-slate-700 text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{isDarkMode ? <Moon size={18} /> : <Sun size={18} />}</button>
                 </div>
                 <button onClick={() => { onGoToMyPage(); setIsDropdownOpen(false); }} className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-2xl transition-colors ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}><User size={18} className="text-emerald-500" /><span className="text-sm font-semibold">마이페이지</span></button>
                 <div className={`h-px w-full my-1 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`} />
@@ -287,13 +333,12 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
           </div>
         </div>
 
-        {/* ── 💡 [핵심 추가 3] 백엔드 미보유 POI 전용 테일윈드 프리미엄 팝업 모달 레이어 ── */}
+        {/* POI 정보 팝업 모달 */}
         {selectedPoi && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className={`w-[420px] rounded-3xl p-6 shadow-2xl border flex flex-col gap-4 text-left animate-in zoom-in-95 duration-300 ${
               isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-800'
             }`}>
-              {/* 모달 상단 헤더 */}
               <div className="flex items-center justify-between border-b pb-3 border-slate-500/10">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center">
@@ -309,7 +354,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
                 </button>
               </div>
 
-              {/* 상세 메타 속성 리스트 영역 */}
               <div className="space-y-3.5 text-xs font-semibold text-slate-400">
                 <div className="flex items-center gap-3">
                   <span className={`w-14 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>가게 정보</span>
@@ -332,7 +376,13 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
                   </div>
                 </div>
 
-                {/* 한 줄 상세 후기 피드백 */}
+                <div className="flex items-center gap-3">
+                  <span className="w-14 shrink-0 font-black tracking-wider uppercase text-[10px]">추천 수단</span>
+                  <div className={`px-2 py-1 rounded-md text-[10px] font-black border uppercase tracking-wider ${detectedVehicle.themeClass}`}>
+                    {detectedVehicle.label}
+                  </div>
+                </div>
+
                 <div className={`p-4 rounded-2xl border flex flex-col gap-1.5 leading-relaxed mt-2 ${
                   isDarkMode ? 'bg-slate-800/40 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200/60 text-slate-600'
                 }`}>
@@ -341,7 +391,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
                 </div>
               </div>
 
-              {/* 하단 닫기 단일 컴팩트 액션 */}
               <button 
                 onClick={() => setSelectedPoi(null)}
                 className="w-full bg-emerald-500 text-white font-black py-3 rounded-2xl text-xs tracking-wider uppercase shadow-md hover:bg-emerald-600 transition-colors"
@@ -351,19 +400,9 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, isDarkM
             </div>
           </div>
         )}
-        {/* ───────────────────────────────────────────────────────────────────────────── */}
-
-        {isDarkMode && <div className="absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-500 z-10" />}
       </div>
 
       <style>{`
-        @keyframes bounceHorizontal {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(4px); }
-        }
-        .animate-bounce-horizontal {
-          animation: bounceHorizontal 1s infinite;
-        }
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: ${isDarkMode ? '#334155' : '#E2E8F0'}; border-radius: 10px; }
