@@ -111,7 +111,6 @@ const LoadingPage = ({
               <Sparkles size={12} /> System Processing
             </div>
             
-            {/* 수정된 핵심 로직: \n 글자를 잘라서 실제 줄바꿈 태그로 변환 */}
             <h1 className={`text-4xl font-black tracking-tight mb-3 leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {message.split(/\\n|\n/).map((line, i) => (
                 <React.Fragment key={i}>

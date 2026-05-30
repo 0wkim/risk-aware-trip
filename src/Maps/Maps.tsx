@@ -21,7 +21,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
   
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // 1. 실제 구불구불한 도로 폴리라인 배열 평탄화 처리
+  // 실제 구불구불한 도로 폴리라인 배열 평탄화 처리
   useEffect(() => {
     if (!routeSegments || routeSegments.length === 0) {
       setFullPath([]);
@@ -38,14 +38,14 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
     setFullPath(paths);
   }, [routeSegments]);
 
-  // 2. 🔥 [무한 반복 버그 종결] 로컬스토리지 기반 최초 1회 애니메이션 잠금 엔진
+  // 로컬스토리지 기반 최초 1회 애니메이션 잠금 엔진
   useEffect(() => {
     if (fullPath.length === 0 || !startPlace || !destPlace) return;
 
     // 현재 출발지-목적지를 기준으로 한 고유 경로 키 생성
     const currentRouteKey = `anim_done_${startPointToKey(startPlace.name)}_${startPointToKey(destPlace.name)}`;
     
-    // 💡 [원천 차단 장치]: 컴포넌트가 소멸 후 부활해도 로컬스토리지 기억을 조회하여 이미 끝난 주행이면 패스!
+    // 컴포넌트가 소멸 후 부활해도 로컬스토리지 기억을 조회하여 이미 끝난 주행이면 패스
     const isAlreadyAnimated = localStorage.getItem(currentRouteKey) === "true";
 
     if (isAlreadyAnimated) {
@@ -58,7 +58,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
       return;
     }
 
-    // 완전히 처음 보여주는 대안 경로일 때만 인터벌 주행 스타트!
+    // 완전히 처음 보여주는 대안 경로일 때만 인터벌 주행 스타트
     setAnimatedPath([fullPath[0]]);
     setArrowPosition(fullPath[0]);
     setIsAnimating(true);
@@ -76,7 +76,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
         setIsAnimating(false);
         setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng }); // 골인 지점에 안착
         
-        // 💡 주행이 완료되는 순간 로컬스토리지에 영구 각인 처리를 합니다.
+        // 주행이 완료되는 순간 로컬스토리지에 영구 각인 처리
         localStorage.setItem(currentRouteKey, "true");
         
         if (destPlace && mapRef.current) {

@@ -6,7 +6,7 @@ import TopBar from '../components/TopBar';
 interface Props {
   onSearch: (params: any) => void;
   onGoToMyPage: () => void;
-  onLogout: () => void; // 💡 추가됨
+  onLogout: () => void; 
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   initialParams: any;
@@ -438,7 +438,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
           routeSegments={[]}
         />
 
-        {/* 💡 TopBar에 onLogout 전달 */}
+        {/* TopBar에 onLogout 전달 */}
         <TopBar 
           seoulData={seoulData} 
           isDarkMode={isDarkMode} 

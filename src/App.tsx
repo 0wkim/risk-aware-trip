@@ -36,7 +36,7 @@ const DISTRICT_MAPPING = [
   { district: '중랑구', areaNm: '장한평역' }
 ];
 
-// 💡 라우팅 로직을 담당하는 내부 컨테이너 컴포넌트
+// 라우팅 로직을 담당하는 내부 컨테이너 컴포넌트
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,7 +61,6 @@ function AppContent() {
   const [seoulData, setSeoulData] = useState<any[]>([]);
   const [isSeoulDataLoading, setIsSeoulDataLoading] = useState(true);
 
-  // ── 🛡️ URL 감지 및 세션 기반 리다이렉션 가드 ──
   useEffect(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
@@ -196,7 +195,7 @@ function AppContent() {
       };
       
       setBackendPredictionResult(unifiedDashboardData);
-      navigate('/result'); // 💡 라우팅을 통한 결과 페이지 이동
+      navigate('/result'); 
 
     } catch (error: any) {
       console.error("🚨 백엔드 AI 통신 치명적 에러 발생:", error);
@@ -222,7 +221,7 @@ function AppContent() {
       };
 
       setBackendPredictionResult(fallbackFakeData);
-      navigate('/result'); // 💡 라우팅을 통한 결과 페이지 이동
+      navigate('/result');  
     } finally {
       setIsAnalyzing(false);
     }
@@ -301,7 +300,6 @@ function AppContent() {
   );
 }
 
-// 💡 최상단에서 BrowserRouter를 주입하여 감싸줍니다.
 export default function App() {
   return (
     <BrowserRouter>

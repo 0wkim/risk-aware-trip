@@ -11,7 +11,7 @@ interface MyPageProps {
   toggleDarkMode: () => void;
   seoulData: any[]; 
   isSeoulDataLoading: boolean; 
-  onSelectHistory?: (start: string, dest: string) => void; // 💡 히스토리 클릭 프롭스 추가
+  onSelectHistory?: (start: string, dest: string) => void;
 }
 
 interface FavoriteItem {
@@ -259,8 +259,8 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                           value={userInfo.department} 
                           onChange={(e) => handleUpdateUserInfo('department', e.target.value)}
                         >
-                          <option value="여유로운 산책파">🍃 여유로운 산책파 (한적한 곳 선호)</option>
-                          <option value="핫플레이스 탐험가">🔥 핫플레이스 탐험가 (인기 지역 선호)</option>
+                          <option value="여유로운 산책파">🍃 여유로운 산책파</option>
+                          <option value="핫플레이스 탐험가">🔥 핫플레이스 탐험가</option>
                           <option value="카페/맛집 투어러">☕ 카페·맛집 투어러</option>
                           <option value="뚜벅이 여행자">🚶‍♂️ 대중교통 중심 뚜벅이</option>
                           <option value="빠른 이동 최우선">⚡ 번잡해도 무조건 빠른 길</option>
@@ -451,7 +451,6 @@ const StatCard = ({ label, value, color, isDarkMode, isMinimal }: any) => (
   </div>
 );
 
-// 💡 HistoryItem에 onClick을 받아서 클릭할 수 있도록 스타일(cursor-pointer) 추가
 const HistoryItem = ({ from, to, date, isDarkMode, onClick }: any) => (
   <div 
     onClick={onClick}

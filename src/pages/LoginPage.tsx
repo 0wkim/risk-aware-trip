@@ -28,13 +28,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
     const users = JSON.parse(localStorage.getItem('user_db') || '[]');
     const user = users.find((u: any) => u.email === email && u.password === password);
 
-    // 디버깅 및 개발 편의용 마스터 계정 허용 (최서영 마이페이지용 기본 데이터 매칭)
+    // 디버깅 및 개발 편의용 마스터 계정 허용 
     const isMasterAccount = email === 'seoyoung8939@gmail.com' && password === '1234';
 
     if (user || isMasterAccount) {
       const loggedInUser = user || { name: '최서영', email: 'seoyoung8939@gmail.com' };
       
-      // 쿠키처럼 만료일 관리를 위한 로컬스토리지 세션 패키징
+      // 만료일 관리를 위한 로컬스토리지 세션 패키징
       const sessionData = {
         userId: loggedInUser.email,
         userName: loggedInUser.name,

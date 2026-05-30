@@ -15,7 +15,7 @@ const TopBar = ({ seoulData, isDarkMode, toggleDarkMode, onGoToMyPage, onLogout 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 💡 [핵심 연동] 로컬 스토리지에서 이름을 불러오고, MyPage의 변경 이벤트를 실시간으로 감지
+  // 로컬 스토리지에서 이름을 불러오고, MyPage의 변경 이벤트를 실시간으로 감지
   useEffect(() => {
     const loadUserName = () => {
       const session = localStorage.getItem('user_session');

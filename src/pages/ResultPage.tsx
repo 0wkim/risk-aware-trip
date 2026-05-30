@@ -12,7 +12,7 @@ interface Props {
   backendResult: any; 
   onBack: () => void;
   onGoToMyPage: () => void;
-  onLogout: () => void; // 💡 추가됨
+  onLogout: () => void; 
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   seoulData: any[];
@@ -207,7 +207,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
           routeSegments={cachedRouteSegments} 
         />
 
-        {/* 💡 TopBar에 onLogout 전달 */}
         <TopBar 
           seoulData={seoulData} 
           isDarkMode={isDarkMode} 
