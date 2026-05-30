@@ -11,6 +11,7 @@ interface MyPageProps {
   toggleDarkMode: () => void;
   seoulData: any[]; 
   isSeoulDataLoading: boolean; 
+  onSelectHistory?: (start: string, dest: string) => void; // 💡 히스토리 클릭 프롭스 추가
 }
 
 interface FavoriteItem {
@@ -31,7 +32,7 @@ interface SearchHistoryItem {
   date: string;
 }
 
-const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoulData, isSeoulDataLoading }: MyPageProps) => {
+const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoulData, isSeoulDataLoading, onSelectHistory }: MyPageProps) => {
   const isDarkMode = isExternalDarkMode;
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [isMinimalMode, setIsMinimalMode] = useState(false);
@@ -87,7 +88,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
       if (field === 'department') parsed.department = value;
       localStorage.setItem('user_session', JSON.stringify(parsed));
       
-      // 상태 변경 이벤트를 발생시켜 TopBar 동기화
       window.dispatchEvent(new Event('userInfoUpdated'));
     }
 
@@ -221,7 +221,14 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                           </div>
                         ) : (
                           [...searchHistory].reverse().slice(0, 4).map((hist) => (
-                            <HistoryItem key={hist.id} from={hist.startPoint} to={hist.destination} date={hist.date} isDarkMode={isDarkMode} />
+                            <HistoryItem 
+                              key={hist.id} 
+                              from={hist.startPoint} 
+                              to={hist.destination} 
+                              date={hist.date} 
+                              isDarkMode={isDarkMode}
+                              onClick={() => onSelectHistory && onSelectHistory(hist.startPoint, hist.destination)} // 💡 클릭 이벤트 연결
+                            />
                           ))
                         )}
                       </div>
@@ -444,8 +451,12 @@ const StatCard = ({ label, value, color, isDarkMode, isMinimal }: any) => (
   </div>
 );
 
-const HistoryItem = ({ from, to, date, isDarkMode }: any) => (
-  <div className={`group p-4 rounded-2xl border transition-all flex items-center justify-between ${isDarkMode ? 'bg-slate-800/30 border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'}`}>
+// 💡 HistoryItem에 onClick을 받아서 클릭할 수 있도록 스타일(cursor-pointer) 추가
+const HistoryItem = ({ from, to, date, isDarkMode, onClick }: any) => (
+  <div 
+    onClick={onClick}
+    className={`group p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${isDarkMode ? 'bg-slate-800/30 border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'}`}
+  >
     <div className="flex items-center gap-4 text-left">
       <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'bg-slate-700 text-slate-500' : 'bg-slate-50 text-slate-400 group-hover:bg-emerald-50'}`}><MapPin size={18} /></div>
       <div><p className={`font-bold text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{from} → {to}</p><p className="text-[11px] text-slate-500 font-medium">{date}</p></div>
