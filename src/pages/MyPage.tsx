@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MapPin, Route, Clock, Search, Sun, Moon, CloudSun, LogOut, Settings, 
-  ChevronRight, User, Lock, Mail, ChevronLeft, Layout, Maximize2, Minimize2, X, Thermometer, Users, Star, Trash2, Coffee, Utensils, Landmark, HelpCircle
+  ChevronRight, User, Maximize2, Minimize2, X, Thermometer, Users, Trash2, Coffee, Utensils, Landmark, HelpCircle, ChevronLeft
 } from 'lucide-react';
 
 interface MyPageProps {
@@ -13,7 +13,6 @@ interface MyPageProps {
   isSeoulDataLoading: boolean; 
 }
 
-// 즐겨찾기 아이템 인터페이스 명시
 interface FavoriteItem {
   id: string;
   name: string;
@@ -25,7 +24,6 @@ interface FavoriteItem {
   customCategory: 'cafe' | 'restaurant' | 'spot' | 'other';
 }
 
-// 검색 기록 인터페이스 명시
 interface SearchHistoryItem {
   id: string;
   startPoint: string;
@@ -40,11 +38,9 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
   
   const [tickerIndex, setTickerIndex] = useState(0);
   const [showDetailModal, setShowDetailModal] = useState(false); 
-  const [showFavoriteModal, setShowFavoriteModal] = useState(false); // 💡 즐겨찾기 모달 제어 상태 추가
+  const [showFavoriteModal, setShowFavoriteModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ── 👤 로컬스토리지의 user_session에서 동적으로 유저 데이터 로드 ──
-  // 기본값 설정 부분 (컴포넌트 상단)
   const [userInfo, setUserInfo] = useState(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
@@ -54,7 +50,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
           name: parsed.userName || '사용자',
           email: parsed.userId || 'unknown@domain.com',
           loginType: parsed.loginType || 'email',
-          // 'department' 대신 'travelStyle' 등으로 개념 전환 (기존 키 유지를 위해 데이터값만 변경)
           department: parsed.department || '여유로운 산책파' 
         };
       } catch (e) {
@@ -69,27 +64,21 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     };
   });
 
-  // ── 📊 실시간 로컬스토리지 데이터 상태 관리 ──
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
 
-  // 화면 진입 시 및 대시보드 복귀 시 데이터 최신화 구역
   useEffect(() => {
-    // 1) 즐겨찾기 로드
     const savedFavs = localStorage.getItem('custom_favorites');
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
 
-    // 2) 검색 기록 로드
     const savedHistory = localStorage.getItem('search_history');
     if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
   }, [currentView, showFavoriteModal]);
 
-  // 정보 수정 및 소속 카테고리 업데이트 핸들러
   const handleUpdateUserInfo = (field: 'name' | 'email' | 'department', value: string) => {
     const updated = { ...userInfo, [field]: value };
     setUserInfo(updated);
 
-    // 1) 현재 세션 세부 패키지 동기화
     const session = localStorage.getItem('user_session');
     if (session) {
       const parsed = JSON.parse(session);
@@ -97,9 +86,11 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
       if (field === 'email') parsed.userId = value;
       if (field === 'department') parsed.department = value;
       localStorage.setItem('user_session', JSON.stringify(parsed));
+      
+      // 상태 변경 이벤트를 발생시켜 TopBar 동기화
+      window.dispatchEvent(new Event('userInfoUpdated'));
     }
 
-    // 2) 회원 DB(user_db) 내의 정보도 함께 동기화 업데이트 (이름, 이메일 한정)
     if (field !== 'department') {
       const users = JSON.parse(localStorage.getItem('user_db') || '[]');
       const userIndex = users.findIndex((u: any) => u.email === userInfo.email);
@@ -110,7 +101,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     }
   };
 
-  // 즐겨찾기 모달 안에서 바로 삭제 처리를 지원하기 위한 핸들러
   const handleDeleteFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = favorites.filter(item => item.id !== id);
@@ -118,7 +108,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     localStorage.setItem('custom_favorites', JSON.stringify(updated));
   };
 
-  // 전체 검색 기록 삭제 핸들러
   const handleClearHistory = () => {
     if (window.confirm('모든 검색 기록을 삭제하시겠습니까?')) {
       localStorage.removeItem('search_history');
@@ -126,7 +115,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     }
   };
 
-  // 즐겨찾기 아이콘 매퍼
   const getFavoriteIcon = (cat: string) => {
     switch (cat) {
       case 'cafe': return <Coffee size={16} />;
@@ -136,7 +124,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     }
   };
 
-  // 롤링 타이머
   useEffect(() => {
     if (seoulData.length === 0 || showDetailModal) return;
     const timer = setInterval(() => {
@@ -156,19 +143,14 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
     if (userInfo.loginType === 'kakao') {
       return <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-[#FEE500]/20 text-[#3C1E1E] dark:text-[#FEE500] border border-[#FEE500]/30">Kakao 연동됨</span>;
     }
-    // 일반 이메일 로그인일 경우 배지를 렌더링하지 않음
     return null;
   }, [userInfo.loginType, isDarkMode]);
 
   return (
     <div className={`fixed inset-0 flex items-center justify-center p-4 font-sans transition-all duration-500 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'}`}>
-      
-      {/* 메인 레이아웃 */}
       <div className={`w-full max-w-6xl h-[750px] rounded-[2.5rem] shadow-2xl flex overflow-hidden border transition-all duration-500 ${showDetailModal || showFavoriteModal ? 'scale-95 blur-md' : 'scale-100'} ${
         isDarkMode ? 'bg-[#1E293B] border-slate-700 text-slate-200' : 'bg-white border-slate-100 text-slate-700'
       }`}>
-        
-        {/* [왼쪽] 콘텐츠 영역 */}
         <main className="flex-1 flex flex-col overflow-hidden bg-transparent text-left">
           <header className={`px-12 py-10 flex justify-between items-center shrink-0 border-b transition-colors ${
             isDarkMode ? 'border-slate-700' : 'border-slate-50'
@@ -186,7 +168,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                 <p className="text-sm text-slate-400 mt-0.5">내 여행 기록과 선호도를 관리하세요.</p>
               </div>
             </div>
-            
             <button onClick={onGoToMap} className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-md active:scale-95 ${
                 isDarkMode ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'
               }`}>
@@ -216,7 +197,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                     </div>
                   </section>
 
-                  {/* 💡 1번 구역 수정: 검색 기록 수와 즐겨찾기 개수로 동적 변환 */}
                   <div className={`grid ${isMinimalMode ? 'grid-cols-1' : 'grid-cols-2'} gap-6 transition-all duration-500`}>
                     <StatCard label="총 검색 횟수" value={searchHistory.length.toString()} color="bg-blue-500" isDarkMode={isDarkMode} isMinimal={isMinimalMode} />
                     <div onClick={() => setShowFavoriteModal(true)} className="cursor-pointer group">
@@ -224,7 +204,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                     </div>
                   </div>
 
-                  {/* 💡 2번 구역 수정: 실제 저장된 검색 기록 반영 */}
                   {!isMinimalMode && (
                     <section className="space-y-6">
                       <div className="flex justify-between items-end">
@@ -241,7 +220,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                             최근 주행 교차 탐색 분석 기록이 존재하지 않습니다.
                           </div>
                         ) : (
-                          // 최신순 정렬 후 상위 4개 렌더링
                           [...searchHistory].reverse().slice(0, 4).map((hist) => (
                             <HistoryItem key={hist.id} from={hist.startPoint} to={hist.destination} date={hist.date} isDarkMode={isDarkMode} />
                           ))
@@ -251,7 +229,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                   )}
                 </div>
               ) : (
-                /* 💡 3번 구역 수정: 설정 탭에서 직접 사용자 전공/카테고리를 셀렉트박스로 선택 가능하도록 구현 */
                 <div className="space-y-6 text-left">
                   <div className={`p-8 rounded-[2.5rem] border transition-all ${isDarkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                     <h5 className="font-bold mb-6 text-emerald-500 flex items-center gap-2"><User size={18} /> 정보 수정</h5>
@@ -290,7 +267,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
           </div>
         </main>
 
-        {/* [오른쪽] 사이드바 영역 */}
         <aside className={`w-80 border-l p-10 flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-[#1E293B]/80 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
           <div className="flex items-center justify-between mb-10 shrink-0">
             <div className="flex items-center gap-3">
@@ -346,7 +322,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
         </aside>
       </div>
 
-      {/* 💡 즐겨찾기 목록 팝업 모달 추가 */}
       {showFavoriteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowFavoriteModal(false)} />
@@ -400,7 +375,6 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
         </div>
       )}
 
-      {/* 서울 실시간 데이터 모달 */}
       {showDetailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowDetailModal(false)} />
