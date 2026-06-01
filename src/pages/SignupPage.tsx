@@ -179,8 +179,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
           Join Community <ArrowRight size={18} />
         </button>
 
-        {/* 구분선 */}
-        <div className="relative my-8 text-center">
+        {/* ─── 소셜 로그인 영역 주석 처리 시작 ─── */}
+        {/* <div className="relative my-8 text-center">
           <div className="absolute inset-0 flex items-center">
             <div className={`w-full border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}></div>
           </div>
@@ -189,7 +189,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
           }`}>Social Connect</span>
         </div>
 
-        {/* 소셜 로그인 - 가로 평행 배치 */}
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onSwitch} type="button" className={`flex items-center justify-center gap-2 py-4 border rounded-2xl font-bold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] ${
             isDarkMode ? 'border-slate-700 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 shadow-sm'
@@ -203,6 +202,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
             <span>Kakao</span>
           </button>
         </div>
+        */}
+        {/* ─── 소셜 로그인 영역 주석 처리 끝 ─── */}
       </div>
     </div>
   );

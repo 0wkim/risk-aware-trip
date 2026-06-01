@@ -7,6 +7,7 @@ import {
 interface MyPageProps {
   onGoToMap: () => void;
   onLogout: () => void;
+  onGoToLanding: () => void; // 👈 랜딩 페이지 이동 함수 추가
   isExternalDarkMode: boolean;
   toggleDarkMode: () => void;
   seoulData: any[]; 
@@ -32,7 +33,16 @@ interface SearchHistoryItem {
   date: string;
 }
 
-const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoulData, isSeoulDataLoading, onSelectHistory }: MyPageProps) => {
+const MyPage = ({ 
+  onGoToMap, 
+  onLogout, 
+  onGoToLanding, // 👈 구조 분해 할당 추가
+  isExternalDarkMode, 
+  toggleDarkMode, 
+  seoulData, 
+  isSeoulDataLoading, 
+  onSelectHistory 
+}: MyPageProps) => {
   const isDarkMode = isExternalDarkMode;
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [isMinimalMode, setIsMinimalMode] = useState(false);
@@ -227,7 +237,7 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
                               to={hist.destination} 
                               date={hist.date} 
                               isDarkMode={isDarkMode}
-                              onClick={() => onSelectHistory && onSelectHistory(hist.startPoint, hist.destination)} // 💡 클릭 이벤트 연결
+                              onClick={() => onSelectHistory && onSelectHistory(hist.startPoint, hist.destination)}
                             />
                           ))
                         )}
@@ -276,10 +286,18 @@ const MyPage = ({ onGoToMap, onLogout, isExternalDarkMode, toggleDarkMode, seoul
 
         <aside className={`w-80 border-l p-10 flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-[#1E293B]/80 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
           <div className="flex items-center justify-between mb-10 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg"><Route size={24} /></div>
-              <span className={`font-bold text-xl tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>ArriView</span>
-            </div>
+            {/* ⚡ ArriView 로고 및 텍스트 클릭 시 랜딩 페이지로 이동하는 버튼으로 수정 */}
+            <button 
+              onClick={onGoToLanding} 
+              className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all hover:opacity-80 bg-transparent border-none outline-none focus:outline-none"
+            >
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                <Route size={24} />
+              </div>
+              <span className={`font-bold text-xl tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                ArriView
+              </span>
+            </button>
             <button onClick={() => setCurrentView(v => v === 'dashboard' ? 'settings' : 'dashboard')} className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all ${isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-white' : 'bg-white text-slate-500 hover:text-emerald-500'} ${currentView === 'settings' ? 'ring-2 ring-emerald-500' : ''}`}><Settings size={20} /></button>
           </div>
 

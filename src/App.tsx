@@ -37,7 +37,6 @@ const DISTRICT_MAPPING = [
   { district: '중랑구', areaNm: '장한평역' }
 ];
 
-// 라우팅 로직을 담당하는 내부 컨테이너 컴포넌트
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +61,7 @@ function AppContent() {
   const [seoulData, setSeoulData] = useState<any[]>([]);
   const [isSeoulDataLoading, setIsSeoulDataLoading] = useState(true);
 
+  // ⚡ 세션 감지 및 리다이렉트 가드 수정
   useEffect(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
@@ -70,15 +70,15 @@ function AppContent() {
         if (Date.now() > expiresAt) {
           localStorage.removeItem('user_session');
           navigate('/login');
-        } else if (location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/') {
-          // 세션이 살아있는데 로그인/회원가입/루트 경로로 오면 마이페이지로 스킵
+        } else if (location.pathname === '/login' || location.pathname === '/signup') {
+          // 💡 여기에 있던 '|| location.pathname === '/' '을 제거했습니다.
+          // 이제 로그인된 상태여도 루트(/) 경로에 접근 시 마이페이지로 튕기지 않고 랜딩 페이지를 보여줍니다.
           navigate('/mypage', { replace: true });
         }
       } catch (e) {
         console.error("Session parse error:", e);
       }
     } else {
-      // 세션이 없을 때 허용되지 않은 경로 접근 시 로그인으로 강제 이동 (단, 루트 경로는 랜딩 페이지이므로 예외)
       if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
         navigate('/login');
       }
@@ -239,7 +239,6 @@ function AppContent() {
   return (
     <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
       <Routes>
-        {/* 기본 경로에 LandingPage를 렌더링하고, props로 seoulData를 넘겨주도록 수정! */}
         <Route path="/" element={<LandingPage onStart={() => navigate('/login')} seoulData={seoulData} />} />
         
         <Route path="/login" element={
@@ -260,6 +259,7 @@ function AppContent() {
         <Route path="/mypage" element={
           <MyPage 
             onGoToMap={() => navigate('/map')} 
+            onGoToLanding={() => navigate('/')} // 👈 💡 MyPage 컴포넌트에 랜딩 페이지 이동 함수 프로프 매핑 완료!
             onSelectHistory={(start, dest) => {
               setSearchParams((prev) => ({ ...prev, startPoint: start, destination: dest, places: undefined }));
               navigate('/map'); 

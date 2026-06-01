@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  ChevronLeft, Clock, Navigation, CheckCircle2, AlertTriangle, XCircle,
-  ArrowRight, Sparkles, X, Phone, Star, Info,
+  ChevronLeft, Clock, Navigation, CheckCircle2, XCircle,
+  ArrowRight, Sparkles, X, Info,
   Car, Train, Footprints
 } from 'lucide-react';
 import Maps from '../Maps/Maps';
@@ -65,22 +65,34 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
     return { mode: 'transit', label: '대중교통', icon: <Train size={14} className="text-emerald-400" />, themeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
   })();
 
-  const rawVerdict = backendResult?.verdict || 'PASS';
+  // =========================================================================
+  // 단일 임계값(Threshold) 처리 로직
+  // =========================================================================
   const successRate = backendResult?.p_success != null ? Math.round(backendResult.p_success * 100) : 92; 
-
-  let verdict: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-  if (rawVerdict === 'FAIL' || successRate < 50) verdict = 'FAIL';
-  else if (rawVerdict === 'WARNING' || (successRate >= 50 && successRate <= 75)) verdict = 'WARNING';
-  else verdict = 'PASS';
+  
+  // 기준 임계값 설정 (예: 성공 확률 70% 이상이면 안전, 미만이면 위험)
+  const SAFETY_THRESHOLD = 70; 
+  
+  // 임계값을 기준으로 PASS(초록색)와 FAIL(빨간색)로 단일 분기
+  const verdict: 'PASS' | 'FAIL' = successRate >= SAFETY_THRESHOLD ? 'PASS' : 'FAIL';
 
   const themeStyles = {
-    PASS: { bg: isDarkMode ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-emerald-50 border-emerald-100', text: 'text-emerald-500', icon: <CheckCircle2 size={22} className="shrink-0 mt-0.5 text-emerald-500 animate-pulse" />, message: `목적지 내에 원활하게 도착할 확률이 매우 높습니다.\nAI가 검증을 완료했으니 기존 계획 그대로 실행하세요!` },
-    WARNING: { bg: isDarkMode ? 'bg-amber-950/40 border-amber-500/30' : 'bg-amber-50 border-amber-100', text: 'text-amber-500', icon: <AlertTriangle size={22} className="shrink-0 mt-0.5 text-amber-500" />, message: `설정 시간 내 도착이 가능하나 밀집 정체 위험이 존재합니다. 만약을 대비한 대체 우회 장소들을 확인하세요.` },
-    FAIL: { bg: isDarkMode ? 'bg-rose-950/40 border-rose-500/30' : 'bg-rose-50 border-rose-100', text: 'text-rose-500', icon: <XCircle size={22} className="shrink-0 mt-0.5 text-rose-500" />, message: `혼잡도 가중치 초과로 기존 계획 실행 시 지연이 확실시됩니다. 아래의 우회 대안 장소 이용을 권장합니다.` }
+    PASS: { 
+      bg: isDarkMode ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-emerald-50 border-emerald-100', 
+      text: 'text-emerald-500', 
+      icon: <CheckCircle2 size={22} className="shrink-0 mt-0.5 text-emerald-500 animate-pulse" />, 
+      message: `목적지 내에 원활하게 도착할 확률이 높습니다 (${successRate}%).\nAI가 검증을 완료했으니 기존 계획 그대로 실행하세요!` 
+    },
+    FAIL: { 
+      bg: isDarkMode ? 'bg-rose-950/40 border-rose-500/30' : 'bg-rose-50 border-rose-100', 
+      text: 'text-rose-500', 
+      icon: <XCircle size={22} className="shrink-0 mt-0.5 text-rose-500" />, 
+      message: `혼잡 및 지연 가능성이 존재합니다 (성공률 ${successRate}%). 아래의 우회 대안 장소 이용을 권장합니다.` 
+    }
   }[verdict];
 
   let recommendations: any[] = [];
-  if (verdict !== 'PASS') {
+  if (verdict === 'FAIL') {
     const backendAlts = backendResult?.alternatives || [];
     if (backendAlts.length > 0) {
       recommendations = backendAlts.map((alt: any, index: number) => ({ 
@@ -133,8 +145,8 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                     <span className="opacity-60 text-[9px] font-medium uppercase shrink-0">출발</span>
                     <span className="tracking-tight max-w-[95px] truncate">{startPoint}</span>
                   </div>
-                  <div className="flex items-center shrink-0 text-slate-400 font-bold animate-pulse">
-                    <ArrowRight size={14} className="animate-bounce-horizontal" />
+                  <div className="flex items-center shrink-0 text-slate-400 font-bold">
+                    <ArrowRight size={14} />
                   </div>
                   <div className={`flex items-center gap-1 px-2.5 py-1 rounded-xl font-black shrink-0 shadow-sm text-xs ${isDarkMode ? 'bg-rose-950/60 text-rose-400 border border-rose-800/50' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
                     <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse shrink-0" />
@@ -171,11 +183,11 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
           {verdict === 'PASS' && (
             <div className={`p-5 rounded-2xl border flex flex-col gap-1.5 text-xs font-bold leading-relaxed transition-all ${isDarkMode ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
               <div className="flex items-center gap-1.5 text-emerald-500 font-black text-xs"><Sparkles size={14} /> 기존 경로 유지 권장</div>
-              현재 시간대 분석 결과, 목적지 일대의 교통 및 유동인구 혼잡 지수가 매우 쾌적합니다. 동선을 변경할 필요가 전혀 없습니다.
+              현재 설정하신 예산 시간 대비 코스 완주 가능성이 안정적입니다. 무리하게 동선을 우회하거나 변경할 필요가 없습니다.
             </div>
           )}
           
-          {verdict !== 'PASS' && recommendations.length > 0 && (
+          {verdict === 'FAIL' && recommendations.length > 0 && (
             <div className="space-y-4 pb-10 animate-in fade-in duration-300">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-wildest ml-1">
                 Recommended Alternatives
