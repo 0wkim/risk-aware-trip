@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import MainMapPage from './pages/MainMapPage';
 import ResultPage from './pages/ResultPage';
+import LandingPage from './pages/LandingPage'; // 랜딩 페이지 컴포넌트 import 추가
 import { api } from './api/client';
 
 interface SearchParams {
@@ -77,8 +78,8 @@ function AppContent() {
         console.error("Session parse error:", e);
       }
     } else {
-      // 세션이 없을 때 허용되지 않은 경로 접근 시 로그인으로 강제 이동
-      if (location.pathname !== '/login' && location.pathname !== '/signup') {
+      // 세션이 없을 때 허용되지 않은 경로 접근 시 로그인으로 강제 이동 (단, 루트 경로는 랜딩 페이지이므로 예외)
+      if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
         navigate('/login');
       }
     }
@@ -238,8 +239,8 @@ function AppContent() {
   return (
     <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
       <Routes>
-        {/* 기본 루트 접근 시 리다이렉션 처리 */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* 기본 루트 접근 시 랜딩 페이지를 띄우도록 수정 */}
+        <Route path="/" element={<LandingPage onStart={() => navigate('/login')} />} />
         
         <Route path="/login" element={
           <LoginPage 

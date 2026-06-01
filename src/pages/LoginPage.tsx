@@ -148,17 +148,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
         </form>
 
         {/* 구분선 */}
-        <div className="relative my-10 text-center">
+        {/* <div className="relative my-10 text-center">
           <div className="absolute inset-0 flex items-center">
             <div className={`w-full border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}></div>
           </div>
           <span className={`relative px-4 text-[10px] font-black uppercase tracking-[0.3em] ${
             isDarkMode ? 'bg-[#1E293B] text-slate-500' : 'bg-white text-slate-400'
           }`}>Social Connect</span>
-        </div>
+        </div> */}
 
         {/* 소셜 로그인 - 가로 평행 배치 */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* <div className="grid grid-cols-2 gap-3">
           <button onClick={onLogin} type="button" className={`flex items-center justify-center gap-2 py-4 border rounded-2xl font-bold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] ${
             isDarkMode ? 'border-slate-700 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 shadow-sm'
           }`}>
@@ -170,7 +170,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
             <RiKakaoTalkFill size={20} /> 
             <span>Kakao</span>
           </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );
