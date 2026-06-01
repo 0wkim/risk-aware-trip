@@ -1,308 +1,324 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, ArrowRight, Users } from 'lucide-react';
+import { ArrowRight, MapPin, Navigation, Cloud, TrendingUp } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
+  seoulData: any[]; 
 }
 
-const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
-
+// 서울시 25개 구 전체 리스트 적용
 const DISTRICT_MAPPING = [
-  { district: '강남구', areaNm: '강남역' },
-  { district: '마포구', areaNm: '합정역' },
-  { district: '종로구', areaNm: '광화문광장' },
-  { district: '성동구', areaNm: '왕십리역' },
-  { district: '영등포구', areaNm: '여의도' },
-  { district: '송파구', areaNm: '잠실역' },
+  { district: '강남구', areaNm: '강남역' }, { district: '강동구', areaNm: '천호역' },
+  { district: '강북구', areaNm: '미아사거리역' }, { district: '강서구', areaNm: '서울식물원·마곡나루역' },
+  { district: '관악구', areaNm: '신림역' }, { district: '광진구', areaNm: '건대입구역' },
+  { district: '구로구', areaNm: '신도림역' }, { district: '금천구', areaNm: '안양천' },
+  { district: '노원구', areaNm: '북서울꿈의숲' }, { district: '도봉구', areaNm: '쌍문역' },
+  { district: '동대문구', areaNm: '청량리 제기동 일대 전통시장' }, { district: '동작구', areaNm: '사당역' },
+  { district: '마포구', areaNm: '합정역' }, { district: '서대문구', areaNm: '신촌 스타광장' },
+  { district: '서초구', areaNm: '고속터미널역' }, { district: '성동구', areaNm: '왕십리역' },
+  { district: '성북구', areaNm: '성신여대입구역' }, { district: '송파구', areaNm: '잠실역' },
+  { district: '양천구', areaNm: '오목교역·목동운동장' }, { district: '영등포구', areaNm: '여의도' },
+  { district: '용산구', areaNm: '용산역' }, { district: '은평구', areaNm: '연신내역' },
+  { district: '종로구', areaNm: '광화문광장' }, { district: '중구', areaNm: '명동 관광특구' },
+  { district: '중랑구', areaNm: '장한평역' }
 ];
 
-const recommendedPlaces = [
-  {
-    category: '음식점',
-    name: '숲속 식탁',
-    desc: '대기 50팀인 메인 거리 맛집 대신, 도보 5분 거리의 숨은 로컬 파스타 맛집',
-    tag: '웨이팅 제로',
-  },
-  {
-    category: '카페',
-    name: '아틀리에 플로우',
-    desc: '만석인 대형 카페를 벗어나 잔잔한 LP 음악과 필터 커피를 즐길 수 있는 곳',
-    tag: '여유로운 좌석',
-  },
-  {
-    category: '명소',
-    name: '하늘마루 정원',
-    desc: '인파로 가득 찬 전망대 대신 도심 야경이 한눈에 들어오는 숨겨진 루프탑 공원',
-    tag: '야경 히든스팟',
-  },
-];
+export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
+  const [scrolled, setScrolled] = useState(false);
+  const [liveVisible, setLiveVisible] = useState(true);
+  const [liveIndex, setLiveIndex] = useState(0);
 
-export default function LandingPage({ onStart }: LandingPageProps) {
-  const [weatherData, setWeatherData] = useState({
-    temp: '-',
-    condition: '불러오는 중...',
-    dust: '-',
-    advice: '실시간 도시 데이터를 분석 중입니다.',
-  });
+  // 25개 구 전체를 초기 더미 데이터로 세팅 (역 이름이 아닌 구 이름 기준)
+  const [allDistrictData, setAllDistrictData] = useState<any[]>(
+    DISTRICT_MAPPING.map(d => ({
+      district: d.district,
+      name: d.district,
+      temp: '-',
+      condition: '불러오는 중...',
+      dust: '-',
+      advice: '데이터를 분석 중입니다.'
+    }))
+  );
 
-  const [crowdedPlaces, setCrowdedPlaces] = useState<any[]>([]);
+  const [crowdedPlaces, setCrowdedPlaces] = useState<any[]>([
+    { rank: 1, name: '강남구', district: '강남구', crowdLevel: '데이터 로딩중', congestion: 0 },
+    { rank: 2, name: '마포구', district: '마포구', crowdLevel: '데이터 로딩중', congestion: 0 },
+    { rank: 3, name: '종로구', district: '종로구', crowdLevel: '데이터 로딩중', congestion: 0 },
+  ]);
+
+  const currentLive = allDistrictData[liveIndex] ?? allDistrictData[0];
 
   useEffect(() => {
-    const fetchCityData = async () => {
-      try {
-        const promises = DISTRICT_MAPPING.map(async (item) => {
-          const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(
-            item.areaNm
-          )}`;
-
-          const response = await fetch(url);
-          const json = await response.json();
-
-          const cityData = json?.CITYDATA;
-          const weatherBase = cityData?.WEATHER_STTS?.[0];
-          const peopleBase = cityData?.LIVE_PPLTN_STTS?.[0];
-
-          const congestionRaw = peopleBase?.AREA_CONGEST_LVL || '정보없음';
-
-          let congestionValue = 30;
-
-          if (
-            congestionRaw.includes('붐빔') ||
-            congestionRaw.includes('혼잡')
-          ) {
-            congestionValue = 90;
-          } else if (
-            congestionRaw.includes('약간') ||
-            congestionRaw.includes('보통')
-          ) {
-            congestionValue = 60;
-          } else if (congestionRaw.includes('여유')) {
-            congestionValue = 25;
-          }
-
-          return {
-            district: item.district,
-            name: item.areaNm,
-            crowdLevel: congestionRaw,
-            congestion: congestionValue,
-            temp: `${weatherBase?.TEMP || '-'}°C`,
-            weather:
-              weatherBase?.WEATHER_STTUS ||
-              weatherBase?.FCST24HOURS?.[0]?.SKY_STTS ||
-              '정보없음',
-          };
-        });
-
-        const results = await Promise.all(promises);
-
-        const sorted = [...results].sort(
-          (a, b) => b.congestion - a.congestion
-        );
-
-        const top3 = sorted.slice(0, 3);
-
-        setCrowdedPlaces(
-          top3.map((item, index) => ({
-            rank: index + 1,
-            name: item.name,
-            crowdLevel: item.crowdLevel,
-            congestion: item.congestion,
-            alternative:
-              item.congestion >= 80 ? '근처 한산한 지역 추천' : '현재 이동 가능',
-          }))
-        );
-
-        setWeatherData({
-          temp: results[0]?.temp || '-',
-          condition: results[0]?.weather || '정보없음',
-          dust: '좋음',
-          advice:
-            top3[0]?.congestion >= 80
-              ? `${top3[0]?.name} 주변 혼잡도가 높습니다. 대안 장소를 미리 확인하세요!`
-              : '현재 주요 목적지 주변은 비교적 원활합니다.',
-        });
-      } catch (error) {
-        console.error('Seoul API fetch error:', error);
-      }
-    };
-
-    fetchCityData();
-
-    const interval = setInterval(fetchCityData, 300000);
-    return () => clearInterval(interval);
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // 3초마다 25개 구 순환 (fade out → index 변경 → fade in)
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      setLiveVisible(false);
+      setTimeout(() => {
+        setLiveIndex((prev) => (prev + 1) % allDistrictData.length);
+        setLiveVisible(true);
+      }, 350);
+    }, 3000);
+    return () => clearInterval(cycle);
+  }, [allDistrictData.length]);
+
+  // App.tsx에서 넘겨준 seoulData가 업데이트될 때마다 갱신 (구 기준)
+  useEffect(() => {
+    if (!seoulData || seoulData.length === 0) return;
+
+    const processedData = seoulData.map((item) => {
+      const congestionRaw = item.congestion || '정보없음';
+      
+      let congestionValue = 30;
+      if (congestionRaw.includes('붐빔') || congestionRaw.includes('혼잡')) congestionValue = 90;
+      else if (congestionRaw.includes('약간') || congestionRaw.includes('보통')) congestionValue = 60;
+      else if (congestionRaw.includes('여유')) congestionValue = 25;
+
+      return {
+        district: item.district,
+        name: item.district, // 역 이름이 아닌 '구' 이름 사용
+        crowdLevel: congestionRaw,
+        congestion: congestionValue,
+        temp: item.temp.replace('°C', ''), 
+        condition: item.weather,
+        dust: '좋음', 
+        advice:
+          congestionValue >= 80
+            ? `${item.district} 일대 혼잡도가 높습니다.`
+            : '현재 쾌적한 이동 환경입니다.',
+      };
+    });
+
+    // 혼잡도 높은 순으로 구 정렬
+    const sorted = [...processedData].sort((a, b) => b.congestion - a.congestion);
+    const top3 = sorted.slice(0, 3).map((item, index) => ({
+      rank: index + 1,
+      name: item.district, // 랭킹에도 역 대신 '구' 이름 표시
+      district: item.district,
+      crowdLevel: item.crowdLevel,
+      congestion: item.congestion,
+    }));
+
+    setCrowdedPlaces(top3);
+    setAllDistrictData(processedData);
+  }, [seoulData]);
+
+  const congestionMeta = (level: string) => {
+    if (level.includes('붐빔') || level.includes('혼잡'))
+      return { label: '매우 혼잡', dot: 'bg-red-400', bar: 'bg-red-400', text: 'text-red-500', badge: 'bg-red-50 text-red-500 border-red-100' };
+    if (level.includes('약간') || level.includes('보통'))
+      return { label: '보통', dot: 'bg-amber-400', bar: 'bg-amber-400', text: 'text-amber-500', badge: 'bg-amber-50 text-amber-500 border-amber-100' };
+    return { label: '여유', dot: 'bg-emerald-400', bar: 'bg-emerald-400', text: 'text-emerald-600', badge: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
+  };
+
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-200 font-sans selection:bg-emerald-500/30">
-      {/* 헤더 섹션 */}
-      <header className="relative min-h-[80vh] flex flex-col justify-center items-center px-6 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_70%)]" />
+    <div
+      style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}
+      className="min-h-screen bg-[#F5F7F5] text-gray-800"
+    >
+      {/* 스티키 헤더 */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-gray-100/80'
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center shadow-sm shadow-emerald-200">
+              <Navigation size={13} className="text-white" strokeWidth={2.5} />
+            </div>
+            <span
+              className="tracking-tight text-gray-900"
+              style={{ fontWeight: 800, fontSize: '0.95rem' }}
+            >
+              ArriView
+            </span>
+          </div>
+          <button
+            onClick={onStart}
+            className={`flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-sm shadow-sm shadow-emerald-200 active:scale-95 transition-all duration-300 ${
+              scrolled ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-1 pointer-events-none'
+            }`}
+            style={{ fontWeight: 700 }}
+          >
+            시작하기 <ArrowRight size={13} strokeWidth={2.5} />
+          </button>
+        </div>
+      </header>
 
-        <div className="z-10 max-w-4xl space-y-8">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-950/30 border border-emerald-900/50 text-emerald-400 text-xs font-bold tracking-widest uppercase">
-            Real-time Route Optimization
-          </span>
+      {/* 히어로 */}
+      <section className="relative pt-36 pb-24 px-6 text-center overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-emerald-100/60 blur-3xl pointer-events-none" />
+        <div className="absolute top-20 left-1/4 w-32 h-32 rounded-full bg-emerald-200/30 blur-2xl pointer-events-none" />
+        <div className="absolute top-32 right-1/4 w-24 h-24 rounded-full bg-teal-200/30 blur-2xl pointer-events-none" />
 
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white leading-[0.9]">
+        <div className="relative max-w-3xl mx-auto">
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-emerald-100 text-emerald-600 mb-8 shadow-sm"
+            style={{ fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            REAL-TIME ROUTE OPTIMIZATION
+          </div>
+
+          <h1
+            className="text-gray-900 tracking-tight mb-5"
+            style={{ fontWeight: 900, fontSize: 'clamp(2.8rem, 7vw, 5rem)', lineHeight: 1.05, letterSpacing: '-0.03em' }}
+          >
             인파를 피해,
             <br />
             <span className="text-emerald-500">완벽한 경로</span>로
           </h1>
 
-          <p className="text-lg text-slate-400 font-medium max-w-xl mx-auto">
-            서울시 실시간 도시 데이터를 분석하여 지금 가장 쾌적한 장소를 추천합니다.
+          <p
+            className="text-gray-500 max-w-md mx-auto mb-10"
+            style={{ fontWeight: 400, fontSize: '1rem', lineHeight: 1.7 }}
+          >
+            서울시 실시간 도시 데이터를 분석해<br />
+            지금 가장 쾌적한 이동 경로를 안내합니다.
           </p>
 
           <button
             onClick={onStart}
-            className="group relative inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+            className="group inline-flex items-center gap-2.5 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl transition-all hover:shadow-xl hover:shadow-emerald-200 active:scale-95"
+            style={{ fontWeight: 700, fontSize: '0.95rem' }}
           >
             지금 시작하기
-            <ArrowRight
-              size={18}
-              className="group-hover:translate-x-1 transition-transform"
-            />
+            <ArrowRight size={16} strokeWidth={2.5} className="group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
-      </header>
+      </section>
 
-      <main className="max-w-6xl mx-auto px-6 py-24 space-y-32">
+      {/* 라이브 데이터 섹션 */}
+      <section className="max-w-5xl mx-auto px-6 pb-28 grid md:grid-cols-5 gap-4">
         {/* 날씨 카드 */}
-        <section className="grid lg:grid-cols-2 gap-8 items-center">
-          <div className="space-y-4">
-            <h2 className="text-4xl font-black text-white">
-              도시의 흐름을
-              <br />
-              <span className="text-emerald-500">읽어내는 정밀함</span>
-            </h2>
-            <p className="text-slate-400">
-              날씨와 인파 데이터를 결합하여 당신의 이동을 최적화합니다.
-            </p>
-          </div>
-
-          <div className="p-8 rounded-[2.5rem] bg-slate-800/50 border border-slate-700 backdrop-blur-md shadow-xl">
-            <div className="flex justify-between items-center mb-8">
-              <span className="text-emerald-500 font-black text-xs uppercase tracking-widest">
-                Live Weather
-              </span>
-              <span className="text-xs bg-slate-700 px-3 py-1 rounded-full text-slate-300">
-                미세먼지 {weatherData.dust}
+        <div className="md:col-span-2 bg-white rounded-[1.75rem] p-7 border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span
+                className="text-emerald-500 uppercase tracking-widest"
+                style={{ fontWeight: 800, fontSize: '0.65rem' }}
+              >
+                Live Status
               </span>
             </div>
+            <span
+              className="text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100 transition-all duration-300"
+              style={{ fontWeight: 600, fontSize: '0.7rem', opacity: liveVisible ? 1 : 0 }}
+            >
+              {currentLive.name}
+            </span>
+          </div>
 
-            <div className="text-7xl font-black tracking-tighter text-white">
-              {weatherData.temp}
+          <div
+            className="flex-1 transition-all duration-300"
+            style={{ opacity: liveVisible ? 1 : 0, transform: liveVisible ? 'translateY(0)' : 'translateY(6px)' }}
+          >
+            <div className="flex items-center gap-1.5 mb-2">
+              <Cloud size={13} className="text-gray-300" />
+              <span className="text-gray-400" style={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                {currentLive.condition}
+              </span>
             </div>
-
-            <div className="text-xl text-slate-400 mt-2">
-              {weatherData.condition}
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-slate-700 text-sm text-slate-500 font-medium italic">
-              💡 {weatherData.advice}
+            <div
+              className="text-gray-900 tracking-tight"
+              style={{ fontWeight: 900, fontSize: '3.8rem', lineHeight: 1, letterSpacing: '-0.04em' }}
+            >
+              {currentLive.temp}
+              <span className="text-gray-400" style={{ fontSize: '1.8rem' }}>°C</span>
             </div>
           </div>
-        </section>
+
+          <div className="mt-6 pt-5 border-t border-gray-100 flex items-center gap-2">
+            <span
+              className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2.5 py-1 rounded-full"
+              style={{ fontWeight: 700, fontSize: '0.7rem' }}
+            >
+              미세먼지 {currentLive.dust}
+            </span>
+          </div>
+
+          <p
+            className="mt-4 text-gray-400 transition-all duration-300"
+            style={{ fontWeight: 400, fontSize: '0.75rem', lineHeight: 1.6, opacity: liveVisible ? 1 : 0 }}
+          >
+            {currentLive.advice}
+          </p>
+        </div>
 
         {/* 혼잡도 순위 */}
-        <section>
-          <h3 className="text-2xl font-black mb-8 flex items-center gap-3 text-white">
-            <Users className="text-emerald-500" />
-            현재 피해야 할 구역
-          </h3>
+        <div className="md:col-span-3 bg-white rounded-[1.75rem] p-7 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={15} className="text-emerald-500" />
+              <span className="text-gray-900" style={{ fontWeight: 800, fontSize: '0.9rem' }}>
+                현재 혼잡 구역 TOP 3
+              </span>
+            </div>
+            <span
+              className="text-gray-400"
+              style={{ fontWeight: 500, fontSize: '0.7rem' }}
+            >
+              5분마다 갱신
+            </span>
+          </div>
 
-          <div className="space-y-4">
-            {crowdedPlaces.length === 0 ? (
-              <div className="p-6 rounded-[2rem] bg-slate-800/30 border border-slate-700 text-slate-400 font-bold">
-                실시간 혼잡 데이터를 불러오는 중입니다...
-              </div>
-            ) : (
-              crowdedPlaces.map((place) => (
+          <div className="space-y-3">
+            {crowdedPlaces.map((place) => {
+              const meta = congestionMeta(place.crowdLevel);
+              return (
                 <div
                   key={place.rank}
-                  className="p-6 rounded-[2rem] bg-slate-800/30 border border-slate-700 hover:border-emerald-500/50 transition-all flex items-center justify-between group"
+                  className="group flex items-center gap-4 p-4 rounded-2xl bg-gray-50/80 border border-gray-100 hover:border-emerald-100 hover:bg-emerald-50/30 transition-all"
                 >
-                  <div className="flex items-center gap-6">
-                    <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-900 font-black text-emerald-500">
-                      0{place.rank}
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-lg text-white">
-                        {place.name}
-                      </h4>
-                      <p className="text-xs text-rose-400 font-bold">
-                        {place.crowdLevel}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="hidden md:block w-48 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 transition-all duration-1000"
-                      style={{ width: `${place.congestion}%` }}
-                    />
-                  </div>
-
-                  <button
-                    onClick={onStart}
-                    className="text-sm font-bold flex items-center gap-2 text-slate-300 hover:text-emerald-500 transition-colors"
+                  <span
+                    className="text-gray-300 w-5 shrink-0 text-center"
+                    style={{ fontWeight: 800, fontSize: '0.8rem' }}
                   >
-                    대안 보기 <ChevronRight size={16} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* 추천 카드 */}
-        <section>
-          <div className="mb-10 text-center">
-            <h3 className="text-3xl font-black text-white">
-              스트레스 없는 대체 장소
-            </h3>
-            <p className="text-slate-400 mt-3">
-              혼잡한 장소 대신 선택할 수 있는 추천 카테고리입니다.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-5">
-            {recommendedPlaces.map((place) => (
-              <div
-                key={place.category}
-                onClick={onStart}
-                className="p-6 rounded-[2rem] bg-slate-800/30 border border-slate-700 hover:border-emerald-500/50 transition-all cursor-pointer group"
-              >
-                <div className="flex justify-between items-center mb-5">
-                  <span className="text-[10px] font-black px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-900/50 text-emerald-400">
-                    {place.category}
+                    {place.rank}
                   </span>
-                  <ArrowRight
-                    size={17}
-                    className="text-slate-500 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all"
-                  />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <MapPin size={11} className="text-gray-300 shrink-0" />
+                      <span className="text-gray-800 truncate" style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+                        {place.name}
+                      </span>
+                      <span
+                        className={`shrink-0 px-2 py-0.5 rounded-full border text-xs ${meta.badge}`}
+                        style={{ fontWeight: 700, fontSize: '0.65rem' }}
+                      >
+                        {meta.label}
+                      </span>
+                    </div>
+                    <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${meta.bar} rounded-full transition-all duration-1000`}
+                        style={{ width: `${place.congestion}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
-
-                <h4 className="text-xl font-black text-white mb-3">
-                  {place.name}
-                </h4>
-
-                <p className="text-sm text-slate-400 leading-relaxed mb-5">
-                  {place.desc}
-                </p>
-
-                <span className="text-xs font-bold text-emerald-400">
-                  {place.tag}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
-      <footer className="py-20 text-center border-t border-slate-800 text-slate-600 text-[10px] font-black uppercase tracking-[0.3em]">
-        Alternative Recommendation System &copy; 2026
+      <footer className="py-8 text-center border-t border-gray-100">
+        <span
+          className="text-gray-300 uppercase tracking-widest"
+          style={{ fontWeight: 700, fontSize: '0.65rem' }}
+        >
+          ArriView &copy; 2026
+        </span>
       </footer>
     </div>
   );

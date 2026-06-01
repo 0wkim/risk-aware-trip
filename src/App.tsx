@@ -6,7 +6,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import MainMapPage from './pages/MainMapPage';
 import ResultPage from './pages/ResultPage';
-import LandingPage from './pages/LandingPage'; // 랜딩 페이지 컴포넌트 import 추가
+import LandingPage from './pages/LandingPage';
 import { api } from './api/client';
 
 interface SearchParams {
@@ -239,8 +239,8 @@ function AppContent() {
   return (
     <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
       <Routes>
-        {/* 기본 루트 접근 시 랜딩 페이지를 띄우도록 수정 */}
-        <Route path="/" element={<LandingPage onStart={() => navigate('/login')} />} />
+        {/* 기본 경로에 LandingPage를 렌더링하고, props로 seoulData를 넘겨주도록 수정! */}
+        <Route path="/" element={<LandingPage onStart={() => navigate('/login')} seoulData={seoulData} />} />
         
         <Route path="/login" element={
           <LoginPage 
