@@ -83,11 +83,27 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   if (verdict !== 'PASS') {
     const backendAlts = backendResult?.alternatives || [];
     if (backendAlts.length > 0) {
-      recommendations = backendAlts.map((alt: any, index: number) => ({ id: index + 1, name: alt.name || '대안 추천 장소', time: `${alt.t_travel ? Math.round(alt.t_travel) : 15}분 소요`, probability: alt.p_success ? `완주율 ${Math.round(alt.p_success * 100)}%` : '안전 경로', type: alt.place_type ? alt.place_type.toUpperCase() : 'ALT', phone: '02-1588-3366', rating: '4.5', hours: '10:00 - 22:00', review: '원래 가려던 곳보다 혼잡도가 절반 이하 수준이라 훨씬 조용하고 좋아요.' }));
+      recommendations = backendAlts.map((alt: any, index: number) => ({ 
+        id: index + 1, 
+        name: alt.name || '대안 추천 장소', 
+        time: `${alt.t_travel ? Math.round(alt.t_travel) : 15}분 소요`, 
+        probability: alt.p_success ? `완주율 ${Math.round(alt.p_success * 100)}%` : '안전 경로', 
+        type: alt.place_type ? alt.place_type.toUpperCase() : 'ALT', 
+        congestion: alt.congestion,
+        t_wait: alt.t_wait,
+        t_travel: alt.t_travel,
+        course_delta: alt.course_delta,
+        p_success: alt.p_success,
+        p_success_delta: alt.p_success_delta,
+        alt_verdict: alt.verdict,
+        is_anchor: alt.is_anchor,
+        confidence: alt.confidence,
+        score: alt.score
+      }));
     } else {
       recommendations = [
-        { id: 1, name: `${destination} 대체 우회지 A`, time: '도보 10분', probability: '완주율 88%', type: 'ALT', phone: '02-333-7788', rating: '4.6', hours: '09:00 - 21:00', review: '백엔드가 추천해준 대로 정체가 아예 없는 청정 플레이스 인증입니다.' },
-        { id: 2, name: `${destination} 인근 회피처 B`, time: '도보 14분', probability: '완주율 82%', type: 'ALT', phone: '02-777-9900', rating: '4.4', hours: '10:30 - 21:30', review: '유동 인구 분산도가 훌륭해서 여유롭게 머무르기 딱 맞춤이에요.' }
+        { id: 1, name: `${destination} 대체 우회지 A`, time: '도보 10분', probability: '완주율 88%', type: 'ALT', congestion: 45.2, t_wait: 5.3, t_travel: 2.1, p_success: 0.82, p_success_delta: 0.14, confidence: 'high', score: 0.91 },
+        { id: 2, name: `${destination} 인근 회피처 B`, time: '도보 14분', probability: '완주율 82%', type: 'ALT', congestion: 38.5, t_wait: 2.5, t_travel: 4.1, p_success: 0.78, p_success_delta: 0.10, confidence: 'medium', score: 0.85 }
       ];
     }
   }
@@ -229,41 +245,59 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
               </div>
 
               <div className="space-y-3.5 text-xs font-semibold text-slate-400">
+                
                 <div className="flex items-center gap-3">
-                  <span className={`w-14 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>가게 정보</span>
-                  <div className={`flex items-center gap-1 font-black ${verdict === 'PASS' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    <Star size={14} className="fill-current" /> {selectedPoi.rating} <span className="opacity-40 font-medium">/ 5.0</span>
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>예측 혼잡도</span>
+                  <div className={`flex items-center gap-1 font-black ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {selectedPoi.congestion !== undefined ? selectedPoi.congestion : '-'}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-14 shrink-0 font-black tracking-wider uppercase text-[10px]">영업 시간</span>
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>예상 대기</span>
                   <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                    <Clock size={14} className="opacity-60" /> {selectedPoi.hours}
+                    <Clock size={14} className="opacity-60" /> {selectedPoi.t_wait !== undefined ? `${selectedPoi.t_wait}분` : '-'}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-14 shrink-0 font-black tracking-wider uppercase text-[10px]">전화 번호</span>
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>접근 이동 시간</span>
                   <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                    <Phone size={14} className="opacity-60" /> {selectedPoi.phone}
+                    <Navigation size={14} className="opacity-60" /> {selectedPoi.t_travel !== undefined ? `${selectedPoi.t_travel}분` : '-'}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-14 shrink-0 font-black tracking-wider uppercase text-[10px]">추천 수단</span>
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>코스 완주율</span>
+                  <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {selectedPoi.p_success !== undefined ? `${Math.round(selectedPoi.p_success * 100)}%` : '-'}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>성공률 상승치</span>
+                  <div className={`flex items-center gap-1.5 font-bold ${selectedPoi.p_success_delta > 0 ? 'text-emerald-500' : isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {selectedPoi.p_success_delta !== undefined ? `+${Math.round(selectedPoi.p_success_delta * 100)}%` : '-'}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>예측 신뢰도/점수</span>
+                  <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {selectedPoi.confidence ? selectedPoi.confidence.toUpperCase() : '-'} / {selectedPoi.score !== undefined ? selectedPoi.score : '-'}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <span className={`w-24 shrink-0 font-black tracking-wider uppercase text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>추천 수단</span>
                   <div className={`px-2 py-1 rounded-md text-[10px] font-black border uppercase tracking-wider ${detectedVehicle.themeClass}`}>
                     {detectedVehicle.label}
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border flex flex-col gap-1.5 leading-relaxed mt-2 ${isDarkMode ? 'bg-slate-800/40 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200/60 text-slate-600'}`}>
-                  <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">대표 리뷰 스포일러</span>
-                  <p className="font-bold text-xs">"{selectedPoi.review}"</p>
-                </div>
               </div>
 
-              <button onClick={() => setSelectedPoi(null)} className="w-full bg-emerald-500 text-white font-black py-3 rounded-2xl text-xs tracking-wider uppercase shadow-md hover:bg-emerald-600 transition-colors">
+              <button onClick={() => setSelectedPoi(null)} className="w-full bg-emerald-500 text-white font-black py-3 rounded-2xl text-xs tracking-wider uppercase shadow-md hover:bg-emerald-600 transition-colors mt-2">
                 상세 정보 닫기
               </button>
             </div>
