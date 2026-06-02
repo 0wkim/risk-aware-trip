@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, MapPin, ArrowRight, ShieldCheck } from 'lucide-react';
-import { FcGoogle } from 'react-icons/fc';
-import { RiKakaoTalkFill } from 'react-icons/ri';
+import { Mail, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
+// import { FcGoogle } from 'react-icons/fc';
+// import { RiKakaoTalkFill } from 'react-icons/ri';
 
 interface SignupPageProps {
   onSwitch: () => void;
@@ -62,14 +62,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
       {/* 상단 로고 */}
       <div className="flex flex-col items-center mb-10 animate-in fade-in zoom-in duration-700">
         <div className="flex items-center gap-3 mb-3">
-          <div className="bg-emerald-500 p-3 rounded-2xl text-white shadow-lg shadow-emerald-500/20">
-            <MapPin size={28} />
-          </div>
+          <img 
+            src="/logo.svg" 
+            alt="ArriView Logo" 
+            className="w-12 h-12 object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
+          />
+          
           <h1 className={`text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             ArriView
           </h1>
         </div>
-        <p className="text-emerald-500 font-bold text-xs uppercase tracking-[0.2em]">Create New Account</p>
+        <p className="text-emerald-500 font-bold text-xs uppercase tracking-[0.2em]">Smart Route Alternatives</p>
       </div>
 
       <div className={`w-full max-w-[450px] rounded-[2.5rem] shadow-2xl border transition-all duration-500 p-10 ${

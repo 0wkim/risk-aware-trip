@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowRight, MapPin, Navigation, CloudSun, TrendingUp, Compass, Activity, ArrowUp, Cpu } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { ArrowRight, MapPin, CloudSun, TrendingUp, Compass, Activity, ArrowUp, Cpu } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -27,22 +27,62 @@ export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
   const [liveVisible, setLiveVisible] = useState(true);
   const [liveIndex, setLiveIndex] = useState(0);
 
-  const [allDistrictData, setAllDistrictData] = useState<any[]>(
-    DISTRICT_MAPPING.map(d => ({
-      district: d.district,
-      name: d.district,
-      temp: '-',
-      condition: '엔진 동기화 중',
-      dust: '-',
-      advice: '실시간 데이터를 연산하고 있습니다.'
-    }))
-  );
+  // useState와 useEffect 대신 useMemo를 사용하여 렌더링 성능 최적화 및 린트 에러 해결
+  const { allDistrictData, crowdedPlaces } = useMemo(() => {
+    // 데이터가 아직 없을 때 보여줄 기본(로딩) 상태
+    if (!seoulData || seoulData.length === 0) {
+      return {
+        allDistrictData: DISTRICT_MAPPING.map(d => ({
+          district: d.district,
+          name: d.district,
+          temp: '-',
+          condition: '엔진 동기화 중',
+          dust: '-',
+          advice: '실시간 데이터를 연산하고 있습니다.'
+        })),
+        crowdedPlaces: [
+          { rank: 1, name: '강남구', district: '강남구', crowdLevel: '데이터 로딩중', congestion: 0 },
+          { rank: 2, name: '마포구', district: '마포구', crowdLevel: '데이터 로딩중', congestion: 0 },
+          { rank: 3, name: '종로구', district: '종로구', crowdLevel: '데이터 로딩중', congestion: 0 },
+        ]
+      };
+    }
 
-  const [crowdedPlaces, setCrowdedPlaces] = useState<any[]>([
-    { rank: 1, name: '강남구', district: '강남구', crowdLevel: '데이터 로딩중', congestion: 0 },
-    { rank: 2, name: '마포구', district: '마포구', crowdLevel: '데이터 로딩중', congestion: 0 },
-    { rank: 3, name: '종로구', district: '종로구', crowdLevel: '데이터 로딩중', congestion: 0 },
-  ]);
+    // 데이터가 들어왔을 때 즉시 가공 
+    const processedData = seoulData.map((item) => {
+      const congestionRaw = item.congestion || '정보없음';
+      
+      let congestionValue = 30;
+      if (congestionRaw.includes('붐빔') || congestionRaw.includes('혼잡')) congestionValue = 90;
+      else if (congestionRaw.includes('약간') || congestionRaw.includes('보통')) congestionValue = 60;
+      else if (congestionRaw.includes('여유')) congestionValue = 25;
+
+      return {
+        district: item.district,
+        name: item.district, 
+        crowdLevel: congestionRaw,
+        congestion: congestionValue,
+        temp: item.temp.replace('°C', ''), 
+        condition: item.weather,
+        dust: '좋음', 
+        advice: congestionValue >= 80
+          ? `⚠️ ${item.district} 부근 밀집도가 임계점을 넘었습니다. 대안 이동망이 작동 중입니다.`
+          : '✨ 정체 우려가 없는 최적의 원활한 동선 흐름을 유지 중입니다.',
+      };
+    });
+
+    const sorted = [...processedData].sort((a, b) => b.congestion - a.congestion);
+    const top3 = sorted.slice(0, 3).map((item, index) => ({
+      rank: index + 1,
+      name: item.district, 
+      district: item.district,
+      crowdLevel: item.crowdLevel,
+      congestion: item.congestion,
+    }));
+
+    // 가공된 결과 반환
+    return { allDistrictData: processedData, crowdedPlaces: top3 };
+  }, [seoulData]);
 
   const currentLive = allDistrictData[liveIndex] ?? allDistrictData[0];
 
@@ -63,45 +103,6 @@ export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
     return () => clearInterval(cycle);
   }, [allDistrictData.length]);
 
-  useEffect(() => {
-    if (!seoulData || seoulData.length === 0) return;
-
-    const processedData = seoulData.map((item) => {
-      const congestionRaw = item.congestion || '정보없음';
-      
-      let congestionValue = 30;
-      if (congestionRaw.includes('붐빔') || congestionRaw.includes('혼잡')) congestionValue = 90;
-      else if (congestionRaw.includes('약간') || congestionRaw.includes('보통')) congestionValue = 60;
-      else if (congestionRaw.includes('여유')) congestionValue = 25;
-
-      return {
-        district: item.district,
-        name: item.district, 
-        crowdLevel: congestionRaw,
-        congestion: congestionValue,
-        temp: item.temp.replace('°C', ''), 
-        condition: item.weather,
-        dust: '좋음', 
-        advice:
-          congestionValue >= 80
-            ? `⚠️ ${item.district} 부근 밀집도가 임계점을 넘었습니다. 대안 이동망이 작동 중입니다.`
-            : '✨ 정체 우려가 없는 최적의 원활한 동선 흐름을 유지 중입니다.',
-      };
-    });
-
-    const sorted = [...processedData].sort((a, b) => b.congestion - a.congestion);
-    const top3 = sorted.slice(0, 3).map((item, index) => ({
-      rank: index + 1,
-      name: item.district, 
-      district: item.district,
-      crowdLevel: item.crowdLevel,
-      congestion: item.congestion,
-    }));
-
-    setCrowdedPlaces(top3);
-    setAllDistrictData(processedData);
-  }, [seoulData]);
-
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -119,38 +120,39 @@ export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
   const targetLetters = "완벽한경로".split("");
 
   return (
-    /* 🟢 [이중 스크롤 버그 해결 핵심 1] 
-       부모의 제한에 가로막혀 내부 스크롤이 생기지 않도록, 고정 높이와 오버플로우 설정을 완전히 걷어내고
-       순수한 문서 흐름(h-auto)으로 브라우저 본연의 단일 스크롤만 사용하도록 재설정했습니다. */
     <div
       style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}
-      className="h-auto w-full bg-[#F8FAF9] text-slate-800 relative selection:bg-emerald-100 selection:text-emerald-900"
+      className="flex flex-col min-h-screen w-full bg-[#F8FAF9] text-slate-800 relative selection:bg-emerald-100 selection:text-emerald-900"
     >
-      {/* 백그라운드 디자인 아트 오로라 */}
-      <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-tr from-emerald-200/30 to-teal-100/20 blur-[130px] animate-pulse pointer-events-none" style={{ animationDuration: '9s' }} />
-      <div className="absolute top-[30%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-gradient-to-br from-teal-200/20 to-emerald-100/30 blur-[120px] animate-pulse pointer-events-none" style={{ animationDuration: '14s' }} />
-
-      {/* 항상 밝고 선명하게 유지되는 스마트 헤더 내비게이션 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-tr from-emerald-200/30 to-teal-100/20 blur-[130px] animate-pulse pointer-events-none" style={{ animationDuration: '9s' }} />
+        <div className="absolute top-[30%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-gradient-to-br from-teal-200/20 to-emerald-100/30 blur-[120px] animate-pulse pointer-events-none" style={{ animationDuration: '14s' }} />
+      </div>
+      
+      {/* 스마트 헤더 내비게이션 */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        className={`fixed top-0 left-0 right-0 z-50 flex items-center transition-all duration-500 ${
           scrolled
-            ? 'bg-white/80 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.02)] border-b border-slate-200/50 py-3'
-            : 'bg-[#F8FAF9]/90 backdrop-blur-md py-4 border-b border-slate-200/30'
+            ? 'h-[60px] bg-white/80 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.02)] border-b border-slate-200/50'
+            : 'h-[73px] bg-[#F8FAF9]/90 backdrop-blur-md border-b border-slate-200/30'
         }`}
       >
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+        <div className="w-full max-w-6xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-3 group cursor-pointer" onClick={scrollToTop}>
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:rotate-12 transition-transform duration-300">
-              <Navigation size={16} className="text-white fill-white/20" strokeWidth={2.5} />
-            </div>
-            <span className="tracking-tight text-slate-900 font-black text-xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-800">
+            <img 
+              src="/logo.svg" 
+              alt="ArriView Logo" 
+              className="w-9 h-9 object-contain drop-shadow-md group-hover:rotate-12 transition-transform duration-300"
+            />
+            
+            <span className="leading-none pt-[2px] tracking-tight text-slate-900 font-black text-xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-800">
               ArriView
             </span>
           </div>
           
           <button
             onClick={onStart}
-            className="group flex items-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 hover:translate-y-[-2px]"
+            className="group flex items-center justify-center gap-2 px-6 h-10 bg-slate-900 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 hover:translate-y-[-2px]"
           >
             시작하기
             <ArrowRight size={14} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
@@ -158,18 +160,23 @@ export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
         </div>
       </header>
 
-      {/* 🟢 [이중 스크롤 버그 해결 핵심 2] 
-         가로 무한 루프 애니메이션 요소가 수평축 외에 수직 높이 오차를 유발하지 않도록 
-         `max-w-full` 및 `contain-content` 속성을 극대화하여 스크롤 유발 가능성을 원천 차단했습니다. */}
-      <div className="pt-[73px] w-full bg-slate-900 text-slate-400 py-2.5 text-[10px] font-bold uppercase tracking-[0.25em] relative select-none overflow-hidden z-40 max-w-full">
-        <div className="w-full overflow-hidden flex relative max-w-full">
-          <div className="animate-[ticker_22s_linear_infinite] flex whitespace-nowrap gap-16 shrink-0 pr-16">
-            <span className="flex items-center gap-2 text-emerald-400"><Cpu size={12} className="animate-spin" style={{ animationDuration: '4s' }} /> LIVE: REALTIME SEOUL ENGINE CONNECTED</span>
+      {/* 실시간 띠 배너 전광판 */}
+      <div className="mt-[73px] w-full bg-slate-900 text-slate-400 py-2.5 text-[10px] font-bold uppercase tracking-[0.25em] relative select-none overflow-hidden z-40 max-w-full">
+        <div className="w-full overflow-hidden flex items-center relative max-w-full">
+          <div className="animate-[ticker_22s_linear_infinite] flex items-center whitespace-nowrap gap-16 shrink-0 pr-16">
+            <span className="flex items-center gap-2 text-emerald-400">
+              <Cpu size={12} className="animate-spin" style={{ animationDuration: '4s' }} /> 
+              LIVE: REALTIME SEOUL ENGINE CONNECTED
+            </span>
             <span className="text-teal-400 font-extrabold">데이터 실시간 안전 가동 및 동기화 중</span>
             <span className="text-slate-500">SYSTEM CHANNELS: 25 DISTRICT DATA LIVE FEEDS CLOUD ACTIVE</span>
           </div>
-          <div className="animate-[ticker_22s_linear_infinite] flex whitespace-nowrap gap-16 shrink-0 pr-16" aria-hidden="true">
-            <span className="flex items-center gap-2 text-emerald-400"><Cpu size={12} className="animate-spin" style={{ animationDuration: '4s' }} /> LIVE: REALTIME SEOUL ENGINE CONNECTED</span>
+          
+          <div className="animate-[ticker_22s_linear_infinite] flex items-center whitespace-nowrap gap-16 shrink-0 pr-16" aria-hidden="true">
+            <span className="flex items-center gap-2 text-emerald-400">
+              <Cpu size={12} className="animate-spin" style={{ animationDuration: '4s' }} /> 
+              LIVE: REALTIME SEOUL ENGINE CONNECTED
+            </span>
             <span className="text-teal-400 font-extrabold">데이터 실시간 안전 가동 및 동기화 중</span>
             <span className="text-slate-500">SYSTEM CHANNELS: 25 DISTRICT DATA LIVE FEEDS CLOUD ACTIVE</span>
           </div>
@@ -290,9 +297,6 @@ export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
               <span className="bg-emerald-50 text-emerald-600 border border-emerald-100/50 px-3 py-1 rounded-xl font-bold text-[11px]">
                 🍃 대기질 {currentLive.dust}
               </span>
-              <span className="bg-slate-50 text-slate-500 border border-slate-200/50 px-3 py-1 rounded-xl font-bold text-[11px]">
-                🕒 3.5초 로테이션
-              </span>
             </div>
 
             <div className="mt-5 p-4 rounded-2xl bg-slate-50 border border-slate-100 min-h-[64px] flex items-center transition-all duration-500" style={{ opacity: liveVisible ? 1 : 0.4 }}>
@@ -362,7 +366,7 @@ export default function LandingPage({ onStart, seoulData }: LandingPageProps) {
       </section>
 
       {/* 푸터 */}
-      <footer className="py-12 text-center border-t border-slate-200/60 bg-white/40 backdrop-blur-md">
+      <footer className="mt-auto py-6 text-center border-t border-slate-200/60 bg-white/40 backdrop-blur-md">
         <span className="text-slate-400 font-black text-[10px] tracking-[0.25em] uppercase">
           ArriView Systems &copy; 2026 &bull; Realtime City Engine
         </span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ArrowRight, Route, Star, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle, Trash2 } from 'lucide-react';
+import { MapPin, ArrowRight, Star, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle, Trash2 } from 'lucide-react';
 import Maps from '../Maps/Maps';
 import TopBar from '../components/TopBar';
 
@@ -31,6 +31,18 @@ interface FavoriteItem {
   categories: string[];
   customCategory: 'cafe' | 'restaurant' | 'spot' | 'other';
 }
+
+const mapToBackendCategory = (categoryName: string): string => {
+  if (categoryName.includes('카페') || categoryName.includes('디저트')) return 'cafe';
+  if (categoryName.includes('음식점')) return 'restaurant';
+  if (categoryName.includes('술집') || categoryName.includes('바')) return 'bar';
+  if (categoryName.includes('쇼핑') || categoryName.includes('마트')) return 'shopping';
+  if (categoryName.includes('관광') || categoryName.includes('문화') || categoryName.includes('명소')) return 'tourist';
+  return 'other';
+};
+
+const toBackendDay = (date: Date): number => (date.getDay() + 6) % 7;
+
 
 const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkMode, initialParams, seoulData }: Props) => {
   const getFavoriteIcon = (cat: string) => {
@@ -119,17 +131,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSearchDropdown]);
-
-  const mapToBackendCategory = (categoryName: string): string => {
-    if (categoryName.includes('카페') || categoryName.includes('디저트')) return 'cafe';
-    if (categoryName.includes('음식점')) return 'restaurant';
-    if (categoryName.includes('술집') || categoryName.includes('바')) return 'bar';
-    if (categoryName.includes('쇼핑') || categoryName.includes('마트')) return 'shopping';
-    if (categoryName.includes('관광') || categoryName.includes('문화') || categoryName.includes('명소')) return 'tourist';
-    return 'other';
-  };
-
-  const toBackendDay = (date: Date): number => (date.getDay() + 6) % 7;
 
   const handleInputChange = (keyword: string, type: 'start' | 'dest' | 'fav') => {
     if (type === 'start') {
@@ -255,10 +256,15 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
   return (
     <div className="flex h-full animate-in fade-in duration-700">
       <div className={`w-[400px] h-full flex flex-col border-r z-10 shadow-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
+        
         <header className="p-6 flex items-center justify-between border-b border-inherit shrink-0">
           <div className="flex items-center gap-2 text-emerald-500">
-            <Route size={24} />
-            <h1 className="font-bold text-lg tracking-tight">스마트 경로 대안</h1>
+            <img 
+              src="/logo.svg" 
+              alt="ArriView Logo" 
+              className="w-6 h-6 object-contain drop-shadow-sm" 
+            />
+            <h1 className="font-bold text-lg tracking-tight">ArriView</h1>
           </div>
         </header>
 
@@ -438,7 +444,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
           routeSegments={[]}
         />
 
-        {/* TopBar에 onLogout 전달 */}
         <TopBar 
           seoulData={seoulData} 
           isDarkMode={isDarkMode} 

@@ -1,16 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  MapPin, Route, Clock, Search, Sun, Moon, CloudSun, LogOut, Settings, 
+  MapPin, Clock, Search, Sun, Moon, CloudSun, LogOut, Settings, 
   ChevronRight, User, Maximize2, Minimize2, X, Thermometer, Users, Trash2, Coffee, Utensils, Landmark, HelpCircle, ChevronLeft
 } from 'lucide-react';
+
+// 명확한 서울 데이터 타입 정의
+export interface SeoulDataItem {
+  district: string;
+  congestion: string;
+  temp: string;
+  realAreaName?: string;
+  weatherText?: string;
+  [key: string]: unknown;
+}
 
 interface MyPageProps {
   onGoToMap: () => void;
   onLogout: () => void;
-  onGoToLanding: () => void; // 👈 랜딩 페이지 이동 함수 추가
+  onGoToLanding: () => void;
   isExternalDarkMode: boolean;
   toggleDarkMode: () => void;
-  seoulData: any[]; 
+  seoulData: SeoulDataItem[]; 
   isSeoulDataLoading: boolean; 
   onSelectHistory?: (start: string, dest: string) => void;
 }
@@ -36,7 +46,7 @@ interface SearchHistoryItem {
 const MyPage = ({ 
   onGoToMap, 
   onLogout, 
-  onGoToLanding, // 👈 구조 분해 할당 추가
+  onGoToLanding, 
   isExternalDarkMode, 
   toggleDarkMode, 
   seoulData, 
@@ -68,22 +78,33 @@ const MyPage = ({
       }
     }
     return {
-      name: '최서영',
+      name: '홍길동',
       email: 'seoyoung8939@gmail.com',
       loginType: 'email',
       department: '여유로운 산책파'
     };
   });
 
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  // 초기 로드 시 useEffect에 의존하지 않고 useState에서 바로 로컬 스토리지 데이터 초기화
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
+    const saved = localStorage.getItem('custom_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>(() => {
+    const saved = localStorage.getItem('search_history');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
-    const savedFavs = localStorage.getItem('custom_favorites');
-    if (savedFavs) setFavorites(JSON.parse(savedFavs));
+    // 동기적 setState 에러를 방지하기 위해 Promise로 래핑하여 비동기 마이크로태스크로 분리
+    Promise.resolve().then(() => {
+      const savedFavs = localStorage.getItem('custom_favorites');
+      if (savedFavs) setFavorites(JSON.parse(savedFavs));
 
-    const savedHistory = localStorage.getItem('search_history');
-    if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
+      const savedHistory = localStorage.getItem('search_history');
+      if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
+    });
   }, [currentView, showFavoriteModal]);
 
   const handleUpdateUserInfo = (field: 'name' | 'email' | 'department', value: string) => {
@@ -103,7 +124,7 @@ const MyPage = ({
 
     if (field !== 'department') {
       const users = JSON.parse(localStorage.getItem('user_db') || '[]');
-      const userIndex = users.findIndex((u: any) => u.email === userInfo.email);
+      const userIndex = users.findIndex((u: Record<string, unknown>) => u.email === userInfo.email);
       if (userIndex !== -1) {
         users[userIndex][field] = value;
         localStorage.setItem('user_db', JSON.stringify(users));
@@ -286,14 +307,15 @@ const MyPage = ({
 
         <aside className={`w-80 border-l p-10 flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-[#1E293B]/80 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
           <div className="flex items-center justify-between mb-10 shrink-0">
-            {/* ⚡ ArriView 로고 및 텍스트 클릭 시 랜딩 페이지로 이동하는 버튼으로 수정 */}
             <button 
               onClick={onGoToLanding} 
-              className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all hover:opacity-80 bg-transparent border-none outline-none focus:outline-none"
+              className="group flex items-center gap-3 cursor-pointer active:scale-95 transition-all hover:opacity-80 bg-transparent border-none outline-none focus:outline-none"
             >
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                <Route size={24} />
-              </div>
+              <img 
+                src="/logo.svg" 
+                alt="ArriView Logo" 
+                className="w-10 h-10 object-contain drop-shadow-md group-hover:rotate-12 transition-transform duration-300"
+              />
               <span className={`font-bold text-xl tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 ArriView
               </span>
@@ -459,7 +481,15 @@ const MyPage = ({
   );
 };
 
-const StatCard = ({ label, value, color, isDarkMode, isMinimal }: any) => (
+interface StatCardProps {
+  label: string;
+  value: string;
+  color: string;
+  isDarkMode: boolean;
+  isMinimal: boolean;
+}
+
+const StatCard = ({ label, value, color, isDarkMode, isMinimal }: StatCardProps) => (
   <div className={`p-6 rounded-3xl border transition-all duration-500 text-left ${isDarkMode ? 'bg-slate-800/50 border-slate-700 group-hover:border-slate-500' : 'bg-slate-50 border-slate-100 group-hover:shadow-md'} ${isMinimal ? 'flex justify-between items-center py-4' : ''}`}>
     <p className={`font-bold text-slate-400 uppercase tracking-wider ${isMinimal ? 'text-[9px]' : 'text-[11px] mb-2'}`}>{label}</p>
     <div className="flex items-baseline gap-1.5">
@@ -469,7 +499,15 @@ const StatCard = ({ label, value, color, isDarkMode, isMinimal }: any) => (
   </div>
 );
 
-const HistoryItem = ({ from, to, date, isDarkMode, onClick }: any) => (
+interface HistoryItemProps {
+  from: string;
+  to: string;
+  date: string;
+  isDarkMode: boolean;
+  onClick: () => void;
+}
+
+const HistoryItem = ({ from, to, date, isDarkMode, onClick }: HistoryItemProps) => (
   <div 
     onClick={onClick}
     className={`group p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${isDarkMode ? 'bg-slate-800/30 border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800' : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md'}`}

@@ -61,7 +61,6 @@ function AppContent() {
   const [seoulData, setSeoulData] = useState<any[]>([]);
   const [isSeoulDataLoading, setIsSeoulDataLoading] = useState(true);
 
-  // ⚡ 세션 감지 및 리다이렉트 가드 수정
   useEffect(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
@@ -71,8 +70,6 @@ function AppContent() {
           localStorage.removeItem('user_session');
           navigate('/login');
         } else if (location.pathname === '/login' || location.pathname === '/signup') {
-          // 💡 여기에 있던 '|| location.pathname === '/' '을 제거했습니다.
-          // 이제 로그인된 상태여도 루트(/) 경로에 접근 시 마이페이지로 튕기지 않고 랜딩 페이지를 보여줍니다.
           navigate('/mypage', { replace: true });
         }
       } catch (e) {
@@ -259,7 +256,7 @@ function AppContent() {
         <Route path="/mypage" element={
           <MyPage 
             onGoToMap={() => navigate('/map')} 
-            onGoToLanding={() => navigate('/')} // 👈 💡 MyPage 컴포넌트에 랜딩 페이지 이동 함수 프로프 매핑 완료!
+            onGoToLanding={() => navigate('/')} 
             onSelectHistory={(start, dest) => {
               setSearchParams((prev) => ({ ...prev, startPoint: start, destination: dest, places: undefined }));
               navigate('/map'); 

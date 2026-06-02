@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, Lock, MapPin, ArrowRight } from 'lucide-react';
-import { FcGoogle } from 'react-icons/fc';
-import { RiKakaoTalkFill } from 'react-icons/ri';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
+// import { FcGoogle } from 'react-icons/fc';
+// import { RiKakaoTalkFill } from 'react-icons/ri';
 
 interface LoginPageProps {
   onSwitch: () => void;
@@ -55,9 +55,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
       {/* 상단 로고 섹션 */}
       <div className="flex flex-col items-center mb-10 animate-in fade-in zoom-in duration-700">
         <div className="flex items-center gap-3 mb-3">
-          <div className="bg-emerald-500 p-3 rounded-2xl text-white shadow-lg shadow-emerald-500/20">
-            <MapPin size={28} />
-          </div>
+          <img 
+            src="/logo.svg" 
+            alt="ArriView Logo" 
+            className="w-12 h-12 object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
+          />
+          
           <h1 className={`text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             ArriView
           </h1>
@@ -147,6 +150,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
           </button>
         </form>
 
+        {/* 소셜 로그인 기능 삭제 (추후 업그레이드) */}
         {/* 구분선 */}
         {/* <div className="relative my-10 text-center">
           <div className="absolute inset-0 flex items-center">
