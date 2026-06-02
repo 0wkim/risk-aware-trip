@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LoadingPage from './pages/LoadingPage';
 import MyPage from './pages/MyPage';
 import LoginPage from './pages/LoginPage';
@@ -177,11 +177,10 @@ function AppContent() {
         }
       }
 
+      // 💡 [해결] 여기서 api.getRoute에 넘기던 day와 hour를 삭제했습니다!
       const routeData = await api.getRoute({
         coords: routeCoords, 
-        mode: optimalMode, 
-        day: params.day,   
-        hour: params.hour  
+        mode: optimalMode
       });
 
       const unifiedDashboardData = {
