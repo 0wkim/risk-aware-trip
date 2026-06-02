@@ -17,6 +17,7 @@ interface SearchParams {
   places?: any[]; 
   day?: number;   
   hour?: number;  
+  mode?: 'walking' | 'car' | 'transit';
 }
 
 const SEOUL_API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
@@ -95,7 +96,6 @@ function AppContent() {
       setIsSeoulDataLoading(true);
       try {
         const promises = DISTRICT_MAPPING.map(async (item) => {
-          // const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
           const url = `/seoul-api/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
           const response = await fetch(url);
           const json = await response.json();
@@ -134,13 +134,16 @@ function AppContent() {
     navigate('/login');
   };
 
+  // 💡 [버그 완전 박멸]: 대안 장소 적용 시 실시간 리라우팅 경로망 재생 엔진 작동 헤드
   const handleStartAnalysis = async (params: any) => {
+    // 1. ResultPage에서 넘어온 새로운 대안 경로 셋(예: 봉은사 정보 포함)으로 파라미터 스택 동기화 교체
     setSearchParams(params);
     setIsAnalyzing(true);
 
     try {
       const totalBudgetMinutes = (Number(params.maxHours) * 60) + Number(params.maxMinutes);
 
+      // 2. 고정된 구 목적지 대신, 새로 넘어온 params.places 배열 컨텍스트로 위험 요인 검증 찌르기
       const courseEvaluation = await api.evaluateCourse({
         waypoints: params.places, 
         T_max: totalBudgetMinutes,
@@ -150,6 +153,7 @@ function AppContent() {
 
       let finalAlternatives: any[] = [];
 
+      // 3. 만약 대안으로 갈아탄 경로마저 가혹도가 높다면 백엔드 랭킹 스코어 한 번 더 집계
       if (courseEvaluation.verdict !== 'PASS' && courseEvaluation.failed_indices && courseEvaluation.failed_indices.length > 0) {
         const failedIndex = courseEvaluation.failed_indices[0];
         const alternativesResponse = await api.getAlternatives({
@@ -165,35 +169,30 @@ function AppContent() {
         finalAlternatives = alternativesResponse.alternatives || [];
       }
 
+      // 4. 🔥 [핵심 타겟 수정]: 새로 가공되어 들어온 대안 장소(봉은사 등)의 위경도 인자를 파싱
       const routeCoords = params.places.map((p: any) => [p.lat, p.lng]);
-      let optimalMode: 'walking' | 'transit' | 'car' = 'transit'; 
-      
-      if (routeCoords.length >= 2) {
-        const latDiff = Math.abs(routeCoords[0][0] - routeCoords[1][0]);
-        const lngDiff = Math.abs(routeCoords[0][1] - routeCoords[1][1]);
-        if (latDiff > 0.04 || lngDiff > 0.04) {
-          optimalMode = totalBudgetMinutes < 40 ? 'car' : 'transit';
-        } else if (latDiff < 0.008 && lngDiff < 0.008) {
-          optimalMode = 'walking';
-        }
-      }
+      const chosenMode = params.mode || 'transit'; 
 
-      // 💡 [해결] 여기서 api.getRoute에 넘기던 day와 hour를 삭제했습니다!
+      // 5. 백엔드 지도 인프라망에 봉은사 타겟 실시간 실제 정밀 노드 점 궤적 리스트 요청
       const routeData = await api.getRoute({
         coords: routeCoords, 
-        mode: optimalMode
+        mode: chosenMode 
       });
 
       const unifiedDashboardData = {
         verdict: courseEvaluation.verdict, 
         p_success: courseEvaluation.p_success, 
-        results: params.places,
+        results: params.places, // 💡 기존 고정값 덮어쓰고 새로운 대안 목적지가 바인딩된 결과셋 주입
         alternatives: finalAlternatives, 
-        route_segments: routeData.segments 
+        route_segments: routeData.segments || routeData.route_segments || [] // 💡 구불구불한 맵 가이드선 동적 전달
       };
       
       setBackendPredictionResult(unifiedDashboardData);
-      navigate('/result'); 
+      
+      // 이미 결과 뷰포트(/result)에 도착해 있는 상태라면 중복 렌더링 스택 경합 방지 격리
+      if (location.pathname !== '/result') {
+        navigate('/result'); 
+      }
 
     } catch (error: any) {
       console.error("🚨 백엔드 AI 통신 치명적 에러 발생:", error);
@@ -208,7 +207,8 @@ function AppContent() {
           {
             polyline: [
               [startPlace?.lat || 37.6542, startPlace?.lng || 127.0565],
-              [((startPlace?.lat || 37.6542) + (destPlace?.lat || 37.5445)) / 2, ((startPlace?.lng || 127.0565) + (destPlace?.lng || 127.0560)) / 2 + 0.005],
+              [((startPlace?.lat || 37.6542) + (destPlace?.lat || 37.5445)) / 2 + 0.004, ((startPlace?.lng || 127.0565) + (destPlace?.lng || 127.0560)) / 2 - 0.008],
+              [((startPlace?.lat || 37.6542) + (destPlace?.lat || 37.5445)) / 2 - 0.003, ((startPlace?.lng || 127.0565) + (destPlace?.lng || 127.0560)) / 2 + 0.006],
               [destPlace?.lat || 37.5445, destPlace?.lng || 127.0560]
             ]
           }
@@ -219,7 +219,9 @@ function AppContent() {
       };
 
       setBackendPredictionResult(fallbackFakeData);
-      navigate('/result');  
+      if (location.pathname !== '/result') {
+        navigate('/result');  
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -237,62 +239,11 @@ function AppContent() {
     <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
       <Routes>
         <Route path="/" element={<LandingPage onStart={() => navigate('/login')} seoulData={seoulData} />} />
-        
-        <Route path="/login" element={
-          <LoginPage 
-            onSwitch={() => navigate('/signup')} 
-            onLogin={() => navigate('/mypage')} 
-            isDarkMode={isDarkMode} 
-          />
-        } />
-        
-        <Route path="/signup" element={
-          <SignupPage 
-            onSwitch={() => navigate('/login')} 
-            isDarkMode={isDarkMode} 
-          />
-        } />
-
-        <Route path="/mypage" element={
-          <MyPage 
-            onGoToMap={() => navigate('/map')} 
-            onGoToLanding={() => navigate('/')} 
-            onSelectHistory={(start, dest) => {
-              setSearchParams((prev) => ({ ...prev, startPoint: start, destination: dest, places: undefined }));
-              navigate('/map'); 
-            }}
-            onLogout={handleLogout}
-            isExternalDarkMode={isDarkMode}
-            toggleDarkMode={toggleDarkMode} 
-            seoulData={seoulData}
-            isSeoulDataLoading={isSeoulDataLoading}
-          />
-        } />
-
-        <Route path="/map" element={
-          <MainMapPage 
-            onSearch={handleStartAnalysis}
-            onGoToMyPage={() => navigate('/mypage')}
-            onLogout={handleLogout}
-            isDarkMode={isDarkMode}
-            toggleDarkMode={toggleDarkMode} 
-            initialParams={searchParams}
-            seoulData={seoulData}
-          />
-        } />
-
-        <Route path="/result" element={
-          <ResultPage 
-            searchParams={searchParams}
-            backendResult={backendPredictionResult} 
-            onBack={() => navigate('/map')} 
-            onGoToMyPage={() => navigate('/mypage')}
-            onLogout={handleLogout}
-            isDarkMode={isDarkMode}
-            toggleDarkMode={toggleDarkMode} 
-            seoulData={seoulData}
-          />
-        } />
+        <Route path="/login" element={<LoginPage onSwitch={() => navigate('/signup')} onLogin={() => navigate('/mypage')} isDarkMode={isDarkMode} />} />
+        <Route path="/signup" element={<SignupPage onSwitch={() => navigate('/login')} isDarkMode={isDarkMode} />} />
+        <Route path="/mypage" element={<MyPage onGoToMap={() => navigate('/map')} onGoToLanding={() => navigate('/')} onSelectHistory={(start, dest) => { setSearchParams((prev) => ({ ...prev, startPoint: start, destination: dest, places: undefined })); navigate('/map'); }} onLogout={handleLogout} isExternalDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} seoulData={seoulData} isSeoulDataLoading={isSeoulDataLoading} />} />
+        <Route path="/map" element={<MainMapPage onSearch={handleStartAnalysis} onGoToMyPage={() => navigate('/mypage')} onLogout={handleLogout} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} initialParams={searchParams} seoulData={seoulData} />} />
+        <Route path="/result" element={<ResultPage searchParams={searchParams} backendResult={backendPredictionResult} onBack={() => navigate('/map')} onGoToMyPage={() => navigate('/mypage')} onLogout={handleLogout} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} seoulData={seoulData} onReroute={handleStartAnalysis} />} />
       </Routes>
     </div>
   );
