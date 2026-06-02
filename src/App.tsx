@@ -95,7 +95,8 @@ function AppContent() {
       setIsSeoulDataLoading(true);
       try {
         const promises = DISTRICT_MAPPING.map(async (item) => {
-          const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
+          // const url = `http://openapi.seoul.go.kr:8088/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
+          const url = `/seoul-api/${SEOUL_API_KEY}/json/citydata/1/5/${encodeURIComponent(item.areaNm)}`;
           const response = await fetch(url);
           const json = await response.json();
           const cityData = json?.CITYDATA;
