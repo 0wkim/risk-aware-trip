@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ArrowRight, Star, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle, Trash2, Calendar, Clock, Car, Train, Footprints, Navigation } from 'lucide-react';
+import { MapPin, ArrowRight, Star, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle, Trash2, Calendar, Clock, Car, Train, Footprints, Navigation, Search } from 'lucide-react';
 import Maps from '../Maps/Maps';
 import TopBar from '../components/TopBar';
 
@@ -65,7 +65,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
 
   const [activeInput, setActiveInput] = useState<'start' | 'dest'>('dest');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showSearchDropdown, setShowSearchDropdown] = useState<'start' | 'dest' | null>(null);
+  const [showSearchDropdown, setShowSearchDropdown] = useState<'start' | 'dest' | 'fav' | null>(null);
 
   const [selectedStartPlace, setSelectedStartPlace] = useState<BackendPlace | null>(() => initialParams.places?.[0] || null);
   const [selectedDestPlace, setSelectedDestPlace] = useState<BackendPlace | null>(() => initialParams.places?.[1] || null);
@@ -139,7 +139,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
     if (!window.kakao || !window.kakao.maps.services) return;
     const ps = new window.kakao.maps.services.Places();
 
-    if (startPoint && !selectedStartPlace) {
+    if (startPoint && !selectedStartPlace && !startPoint.includes('현재 위치')) {
       ps.keywordSearch(startPoint, (data, status) => {
         if (status === window.kakao.maps.services.Status.OK && data[0]) {
           const first = data[0];
@@ -177,12 +177,21 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
     else if (type === 'dest') { setDestination(keyword); if (selectedDestPlace && keyword !== selectedDestPlace.name) setSelectedDestPlace(null); } 
     else { setNewFavName(keyword); setFavSelectedPlace(null); }
 
-    if (!keyword.trim()) { if (type !== 'fav') { setSearchResults([]); setShowSearchDropdown(null); } return; }
+    if (!keyword.trim()) { 
+      setSearchResults([]); 
+      setShowSearchDropdown(null);
+      return; 
+    }
 
     const ps = new window.kakao.maps.services.Places();
     ps.keywordSearch(keyword, (data, status) => {
-      if (status === window.kakao.maps.services.Status.OK) { setSearchResults(data); if (type !== 'fav') setShowSearchDropdown(type); else setShowSearchDropdown('start'); } 
-      else { setSearchResults([]); setShowSearchDropdown(null); }
+      if (status === window.kakao.maps.services.Status.OK) { 
+        setSearchResults(data); 
+        setShowSearchDropdown(type); // 💡 즐겨찾기 드롭다운 버그 픽스 완료
+      } else { 
+        setSearchResults([]); 
+        setShowSearchDropdown(null); 
+      }
     });
   };
 
@@ -190,22 +199,50 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
     const formattedPlace: BackendPlace = { lat: parseFloat(place.y), lng: parseFloat(place.x), place_id: place.id, categories: [mapToBackendCategory(place.category_name)], name: place.place_name };
     if (type === 'start') { setStartPoint(place.place_name); setSelectedStartPlace(formattedPlace); } 
     else if (type === 'dest') { setDestination(place.place_name); setSelectedDestPlace(formattedPlace); } 
-    else if (type === 'fav') { setNewFavName(place.place_name); setFavSelectedPlace(place); const cat = place.category_name; if (cat.includes('카페')) setSelectedFavCategory('cafe'); else if (cat.includes('음식점')) setSelectedFavCategory('restaurant'); else if (cat.includes('관광') || cat.includes('문화')) setSelectedFavCategory('spot'); else setSelectedFavCategory('other'); }
+    else if (type === 'fav') { 
+      setNewFavName(place.place_name); 
+      setFavSelectedPlace(place); 
+      const cat = place.category_name; 
+      if (cat.includes('카페') || cat.includes('디저트')) setSelectedFavCategory('cafe'); 
+      else if (cat.includes('음식점')) setSelectedFavCategory('restaurant'); 
+      else if (cat.includes('관광') || cat.includes('문화') || cat.includes('명소')) setSelectedFavCategory('spot'); 
+      else setSelectedFavCategory('other'); 
+    }
     setShowSearchDropdown(null);
     setSearchResults([]);
   };
 
   const handleAddFavorite = () => {
     if (!newFavName.trim() || !favSelectedPlace) return alert("추가할 장소를 검색 목록에서 정확히 선택해 주세요.");
-    const newFav: FavoriteItem = { id: `fav-${Date.now()}`, name: newFavName, address: favSelectedPlace.address_name || favSelectedPlace.road_address_name || '주소 정보 없음', lat: parseFloat(favSelectedPlace.y), lng: parseFloat(favSelectedPlace.x), place_id: favSelectedPlace.id, categories: [mapToBackendCategory(favSelectedPlace.category_name)], customCategory: selectedFavCategory };
+    const newFav: FavoriteItem = { 
+      id: `fav-${Date.now()}`, 
+      name: newFavName, 
+      address: favSelectedPlace.address_name || favSelectedPlace.road_address_name || '주소 정보 없음', 
+      lat: parseFloat(favSelectedPlace.y), 
+      lng: parseFloat(favSelectedPlace.x), 
+      place_id: favSelectedPlace.id, 
+      categories: [mapToBackendCategory(favSelectedPlace.category_name)], 
+      customCategory: selectedFavCategory 
+    };
     setFavorites((prev) => [newFav, ...prev]);
-    setNewFavName(''); setFavSelectedPlace(null); setIsAddingFav(false);
+    setNewFavName(''); 
+    setFavSelectedPlace(null); 
+    setIsAddingFav(false);
   };
 
   const handleDeleteFavorite = (id: string, e: React.MouseEvent) => { e.stopPropagation(); setFavorites((prev) => prev.filter(item => item.id !== id)); };
-  const handleFavoriteClick = (fav: FavoriteItem) => { const targetPlace: BackendPlace = { lat: fav.lat, lng: fav.lng, place_id: fav.place_id, categories: fav.categories, name: fav.name }; if (activeInput === 'start') { setStartPoint(fav.name); setSelectedStartPlace(targetPlace); } else { setDestination(fav.name); setSelectedDestPlace(targetPlace); } };
+  
+  const handleFavoriteClick = (fav: FavoriteItem) => { 
+    const targetPlace: BackendPlace = { lat: fav.lat, lng: fav.lng, place_id: fav.place_id, categories: fav.categories, name: fav.name }; 
+    if (activeInput === 'start') { 
+      setStartPoint(fav.name); 
+      setSelectedStartPlace(targetPlace); 
+    } else { 
+      setDestination(fav.name); 
+      setSelectedDestPlace(targetPlace); 
+    } 
+  };
 
-  // 💡 [핵심 버그 완전 수정]: '현재 위치' 복원 시 좌표 매핑 예외 처리 추가 및 주소 검색(Geocoder) 폴백 연동
   const handleSearchClick = () => {
     if (!startPoint.trim() || !destination.trim()) {
       return alert("출발지와 도착지를 모두 입력해주세요.");
@@ -217,26 +254,22 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
 
     const resolvePlace = (keyword: string, currentPlace: BackendPlace | null): Promise<BackendPlace> => {
       return new Promise((resolve, reject) => {
-        // 1. 이미 좌표가 매핑되어 있고 텍스트가 정확히 일치하면 그대로 통과
         if (currentPlace && currentPlace.name === keyword) {
           resolve(currentPlace);
           return;
         }
 
-        // 2. '📍 현재 위치' 패턴인 경우 (localStorage에서 불러와서 좌표가 끊긴 상황 방어)
         if (keyword.startsWith('📍 현재 위치')) {
           const match = keyword.match(/\(([^)]+)\)/);
           const addressOrCoord = match ? match[1].trim() : '';
 
           if (addressOrCoord) {
-            // 좌표 형태 (위도, 경도) 인지 확인
             if (addressOrCoord.includes(',') && !isNaN(parseFloat(addressOrCoord.split(',')[0]))) {
               const [lat, lng] = addressOrCoord.split(',').map(s => parseFloat(s.trim()));
               resolve({ lat, lng, place_id: 'live_gps_node', categories: ['other'], name: keyword });
               return;
             }
 
-            // 한글 주소명일 경우 Geocoder로 좌표 역산
             const geocoder = new window.kakao.maps.services.Geocoder();
             geocoder.addressSearch(addressOrCoord, (result: any[], status: any) => {
               if (status === window.kakao.maps.services.Status.OK && result[0]) {
@@ -255,7 +288,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
           }
         }
 
-        // 3. 일반적인 텍스트 검색 (장소 키워드 검색)
         const ps = new window.kakao.maps.services.Places();
         ps.keywordSearch(keyword, (data: any[], status: any) => {
           if (status === window.kakao.maps.services.Status.OK && data[0]) {
@@ -268,7 +300,6 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
               name: first.place_name
             });
           } else {
-            // 4. 폴백(Fallback): 사용자가 장소명이 아닌 '순수 지번/도로명 주소'를 입력했을 경우
             const geocoder = new window.kakao.maps.services.Geocoder();
             geocoder.addressSearch(keyword, (addrData: any[], addrStatus: any) => {
               if (addrStatus === window.kakao.maps.services.Status.OK && addrData[0]) {
@@ -280,7 +311,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
                   name: keyword
                 });
               } else {
-                reject(keyword); // 주소 검색마저 실패하면 최종 거절
+                reject(keyword);
               }
             });
           }
@@ -288,18 +319,15 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
       });
     };
 
-    // 출발지와 도착지를 동시에 비동기로 검증 & 좌표 자동 파싱
     Promise.all([
       resolvePlace(startPoint, selectedStartPlace),
       resolvePlace(destination, selectedDestPlace)
     ]).then(([finalStart, finalDest]) => {
-      // 파싱된 최종 좌표를 내부 상태에 자동 적용
       setSelectedStartPlace(finalStart);
       setSelectedDestPlace(finalDest);
       setStartPoint(finalStart.name);
       setDestination(finalDest.name);
 
-      // 성공 시 히스토리 저장 및 분석 페이지로 점프!
       const currentHistory = JSON.parse(localStorage.getItem('search_history') || '[]');
       const formattedDate = `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`;
       currentHistory.push({ id: `hist-${Date.now()}`, startPoint: finalStart.name, destination: finalDest.name, date: formattedDate });
@@ -328,7 +356,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
       {/* 패널 영역 (모바일: 하단(바텀시트), 데스크탑: 좌측 고정) */}
       <div className={`order-2 md:order-1 w-full md:w-[400px] h-[55vh] md:h-full flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-all duration-500 rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
         
-        {/* 모바일용 드래그 핸들 (디자인 요소) */}
+        {/* 모바일용 드래그 핸들 */}
         <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-1 md:hidden shrink-0" />
 
         <header className="px-5 py-3 md:p-6 flex items-center justify-between md:border-b border-inherit shrink-0">
@@ -396,7 +424,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
 
               <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl border transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                 <MapPin size={16} className={`${activeInput === 'start' ? 'text-blue-500' : 'text-slate-400'} shrink-0 md:w-[18px] md:h-[18px]`} />
-                <input type="text" value={startPoint} onChange={(e) => handleInputChange(e.target.value, 'start')} onFocus={() => { setActiveInput('start'); if(searchResults.length) setShowSearchDropdown('start'); }} placeholder="출발지를 입력해주세요" className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit" />
+                <input type="text" value={startPoint} onChange={(e) => handleInputChange(e.target.value, 'start')} onFocus={() => { setActiveInput('start'); if(searchResults.length && showSearchDropdown !== 'fav') setShowSearchDropdown('start'); }} placeholder="출발지를 입력해주세요" className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit" />
               </div>
               {showSearchDropdown === 'start' && !isAddingFav && (
                 <div className={`absolute bottom-full mb-1 md:bottom-auto md:top-full left-0 right-0 md:mt-2 max-h-40 md:max-h-48 overflow-y-auto rounded-xl md:rounded-2xl shadow-xl z-50 border p-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white text-slate-700'}`}>
@@ -409,9 +437,9 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
               <label className={`text-[10px] md:text-[11px] font-black uppercase tracking-wildest mb-1.5 block ${activeInput === 'dest' ? 'text-rose-500' : 'text-slate-400'}`}>Destination</label>
               <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl border transition-all focus-within:border-rose-500 focus-within:ring-2 focus-within:ring-rose-500/20 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                 <MapPin size={16} className={`${activeInput === 'dest' ? 'text-rose-500' : 'text-slate-400'} shrink-0 md:w-[18px] md:h-[18px]`} />
-                <input type="text" value={destination} onChange={(e) => handleInputChange(e.target.value, 'dest')} onFocus={() => { setActiveInput('dest'); if(searchResults.length) setShowSearchDropdown('dest'); }} placeholder="도착지를 입력하세요" className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit" />
+                <input type="text" value={destination} onChange={(e) => handleInputChange(e.target.value, 'dest')} onFocus={() => { setActiveInput('dest'); if(searchResults.length && showSearchDropdown !== 'fav') setShowSearchDropdown('dest'); }} placeholder="도착지를 입력하세요" className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit" />
               </div>
-              {showSearchDropdown === 'dest' && (
+              {showSearchDropdown === 'dest' && !isAddingFav && (
                 <div className={`absolute bottom-full mb-1 md:bottom-auto md:top-full left-0 right-0 md:mt-2 max-h-40 md:max-h-48 overflow-y-auto rounded-xl md:rounded-2xl shadow-xl z-50 border p-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white text-slate-700'}`}>
                   {searchResults.map((place) => <button key={place.id} onClick={() => handleSelectPlace(place, 'dest')} className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex flex-col gap-0.5 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}><span className="font-bold text-sm">{place.place_name}</span><span className="text-slate-400 text-[10px] truncate w-full">{place.address_name}</span></button>)}
                 </div>
@@ -452,8 +480,70 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
                 <Star size={14} className="text-yellow-500 fill-yellow-500 md:w-[15px] md:h-[15px]" />
                 <h3 className={`text-[11px] md:text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>즐겨찾는 장소</h3>
               </div>
-              <button onClick={() => setIsAddingFav(!isAddingFav)} className={`flex items-center gap-1 text-[9px] md:text-[10px] font-black px-2 py-1 rounded-lg border transition-all ${isAddingFav ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>{isAddingFav ? <Minus size={10} className="md:w-3 md:h-3" /> : <Plus size={10} className="md:w-3 md:h-3" />} {isAddingFav ? '닫기' : '추가'}</button>
+              <button 
+                onClick={() => setIsAddingFav(!isAddingFav)} 
+                className={`flex items-center gap-1 text-[9px] md:text-[10px] font-black px-2 py-1 rounded-lg border transition-all ${isAddingFav ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}
+              >
+                {isAddingFav ? <Minus size={10} className="md:w-3 md:h-3" /> : <Plus size={10} className="md:w-3 md:h-3" />} {isAddingFav ? '닫기' : '추가'}
+              </button>
             </div>
+
+            {/* 💡 즐겨찾기 장소 추가 UI 영역 */}
+            {isAddingFav && (
+              <div className={`mb-3 p-3 md:p-4 rounded-xl md:rounded-2xl border animate-in fade-in slide-in-from-top-2 shrink-0 ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="relative search-container mb-3">
+                  <div className={`flex items-center gap-2 p-2.5 rounded-lg md:rounded-xl border focus-within:border-emerald-500 ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+                    <Search size={14} className="text-emerald-500 shrink-0" />
+                    <input 
+                      type="text" 
+                      value={newFavName}
+                      onChange={(e) => handleInputChange(e.target.value, 'fav')}
+                      onFocus={() => { if(searchResults.length) setShowSearchDropdown('fav'); }}
+                      placeholder="추가할 장소를 검색하세요"
+                      className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit"
+                    />
+                  </div>
+                  {showSearchDropdown === 'fav' && (
+                    <div className={`absolute bottom-full left-0 right-0 mb-1 max-h-40 overflow-y-auto rounded-xl shadow-xl z-50 border p-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white text-slate-700'}`}>
+                      {searchResults.map((place) => (
+                        <button key={place.id} onClick={() => handleSelectPlace(place, 'fav')} className={`w-full text-left p-2 rounded-lg text-xs font-semibold flex flex-col gap-0.5 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
+                          <span className="font-bold text-sm">{place.place_name}</span>
+                          <span className="text-slate-400 text-[10px] truncate w-full">{place.address_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-1.5 md:gap-2 mb-3">
+                  {[
+                    { id: 'cafe', label: '카페', icon: <Coffee size={12}/> },
+                    { id: 'restaurant', label: '음식점', icon: <Utensils size={12}/> },
+                    { id: 'spot', label: '관광/명소', icon: <Landmark size={12}/> },
+                    { id: 'other', label: '기타', icon: <HelpCircle size={12}/> }
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedFavCategory(cat.id as any)}
+                      className={`flex-1 py-1.5 md:py-2 flex items-center justify-center gap-1 rounded-lg border text-[9px] md:text-[10px] font-bold transition-all ${
+                        selectedFavCategory === cat.id 
+                          ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' 
+                          : isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {cat.icon} <span className="hidden sm:inline">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+                
+                <button 
+                  onClick={handleAddFavorite}
+                  className="w-full bg-slate-900 hover:bg-emerald-500 text-white py-2 md:py-2.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black tracking-widest transition-all active:scale-95 shadow-md"
+                >
+                  즐겨찾기에 저장
+                </button>
+              </div>
+            )}
 
             <div className="space-y-2 md:space-y-2.5 overflow-y-auto max-h-[140px] md:max-h-[160px] pr-1 custom-scrollbar">
               {favorites.map(fav => (

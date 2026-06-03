@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  MapPin, Clock, Search, Sun, Moon, CloudSun, LogOut, Settings, 
-  ChevronRight, User, Maximize2, Minimize2, X, Thermometer, Users, Trash2, Coffee, Utensils, Landmark, HelpCircle, ChevronLeft
+  ChevronLeft, Clock, Search, Sun, Moon, CloudSun, LogOut, Settings, MapPin,
+  ChevronRight, User, Maximize2, Minimize2, X, Thermometer, Users, Trash2, Coffee, Utensils, Landmark, HelpCircle
 } from 'lucide-react';
+import Maps from '../Maps/Maps';
+import TopBar from '../components/TopBar';
 
 export interface SeoulDataItem {
   district: string;
@@ -56,10 +58,39 @@ const MyPage = ({
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [isMinimalMode, setIsMinimalMode] = useState(false);
   
+  // 💡 티커 순환 애니메이션 상태 관리
   const [tickerIndex, setTickerIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+
   const [showDetailModal, setShowDetailModal] = useState(false); 
   const [showFavoriteModal, setShowFavoriteModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // 💡 6개 구역 제한 필터 삭제! 모든 구역(25개)을 사용합니다.
+  const validSeoulData = useMemo(() => {
+    return Array.isArray(seoulData) ? seoulData.filter(item => item && item.district) : [];
+  }, [seoulData]);
+
+  // 💡 무한 루프 타이머
+  useEffect(() => {
+    if (validSeoulData.length === 0 || showDetailModal) return;
+    const timer = setInterval(() => {
+      setIsTransitioning(true);
+      setTickerIndex((prev) => prev + 1);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [validSeoulData.length, showDetailModal]);
+
+  // 💡 마지막 요소에 도달하면 애니메이션 없이 몰래 0번 인덱스로 점프! (순환 구조 완성)
+  useEffect(() => {
+    if (tickerIndex === validSeoulData.length && validSeoulData.length > 0) {
+      const resetTimer = setTimeout(() => {
+        setIsTransitioning(false); // 순간이동을 위해 애니메이션 끄기
+        setTickerIndex(0); // 0번(첫번째)으로 복귀
+      }, 1000); // transition 애니메이션 시간(1초)만큼 기다렸다가 실행
+      return () => clearTimeout(resetTimer);
+    }
+  }, [tickerIndex, validSeoulData.length]);
 
   const [userInfo, setUserInfo] = useState(() => {
     const session = localStorage.getItem('user_session');
@@ -72,16 +103,9 @@ const MyPage = ({
           loginType: parsed.loginType || 'email',
           department: parsed.department || '여유로운 산책파' 
         };
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
     }
-    return {
-      name: '홍길동',
-      email: 'seoyoung8939@gmail.com',
-      loginType: 'email',
-      department: '여유로운 산책파'
-    };
+    return { name: '홍길동', email: 'seoyoung8939@gmail.com', loginType: 'email', department: '여유로운 산책파' };
   });
 
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
@@ -98,7 +122,6 @@ const MyPage = ({
     Promise.resolve().then(() => {
       const savedFavs = localStorage.getItem('custom_favorites');
       if (savedFavs) setFavorites(JSON.parse(savedFavs));
-
       const savedHistory = localStorage.getItem('search_history');
       if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
     });
@@ -152,14 +175,6 @@ const MyPage = ({
     }
   };
 
-  useEffect(() => {
-    if (seoulData.length === 0 || showDetailModal) return;
-    const timer = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % seoulData.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [seoulData.length, showDetailModal]);
-
   const filteredStatus = useMemo(() => {
     return seoulData.filter(s => s.district.includes(searchTerm));
   }, [seoulData, searchTerm]);
@@ -174,17 +189,16 @@ const MyPage = ({
     return null;
   }, [userInfo.loginType, isDarkMode]);
 
+  // 💡 무한 루프를 위해 원래 배열 뒤에 첫 번째 아이템을 하나 복사해서 붙여넣음
+  const tickerItems = validSeoulData.length > 0 ? [...validSeoulData, validSeoulData[0]] : [];
+
   return (
     <div className={`fixed inset-0 flex items-center justify-center p-0 lg:p-4 font-sans transition-all duration-500 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'}`}>
       
-      {/* 모바일에서는 전체 뷰포트를 채우며 스크롤이 가능하도록 변경 (w-full h-full rounded-none overflow-y-auto).
-        데스크탑에서는 기존의 둥근 모서리와 고정된 높이(h-[750px])를 유지.
-      */}
       <div className={`w-full h-full lg:max-w-6xl lg:h-[750px] lg:rounded-[2.5rem] shadow-2xl flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden border-0 lg:border transition-all duration-500 ${showDetailModal || showFavoriteModal ? 'scale-[0.98] blur-sm lg:scale-95 lg:blur-md' : 'scale-100'} ${
         isDarkMode ? 'bg-[#1E293B] lg:border-slate-700 text-slate-200' : 'bg-white lg:border-slate-100 text-slate-700'
       }`}>
         
-        {/* 왼쪽 메인 컨텐츠 영역 */}
         <main className="flex-1 flex flex-col lg:overflow-hidden bg-transparent text-left h-auto lg:h-full shrink-0">
           <header className={`px-5 py-4 md:px-12 md:py-10 flex justify-between items-center shrink-0 border-b transition-colors sticky top-0 z-10 backdrop-blur-md ${
             isDarkMode ? 'border-slate-700 bg-[#1E293B]/90' : 'border-slate-50 bg-white/90'
@@ -213,7 +227,6 @@ const MyPage = ({
             <div className={`max-w-3xl mx-auto lg:mx-0 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-all ${isMinimalMode ? 'opacity-80 scale-[0.98]' : ''}`}>
               {currentView === 'dashboard' ? (
                 <div className="space-y-8 md:space-y-10">
-                  {/* 프로필 섹션 */}
                   <section className="flex flex-col sm:flex-row items-center sm:items-center gap-4 md:gap-6 text-center sm:text-left">
                     <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 shadow-md overflow-hidden shrink-0 transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-emerald-50 border-white'}`}>
                       <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(userInfo.name)}`} alt="avatar" className="w-full h-full object-cover" />
@@ -232,7 +245,6 @@ const MyPage = ({
                     </div>
                   </section>
 
-                  {/* 통계 카드 */}
                   <div className={`grid ${isMinimalMode ? 'grid-cols-1' : 'grid-cols-2'} gap-4 md:gap-6 transition-all duration-500`}>
                     <StatCard label="총 검색 횟수" value={searchHistory.length.toString()} color="bg-blue-500" isDarkMode={isDarkMode} isMinimal={isMinimalMode} />
                     <div onClick={() => setShowFavoriteModal(true)} className="cursor-pointer group">
@@ -240,7 +252,6 @@ const MyPage = ({
                     </div>
                   </div>
 
-                  {/* 최근 검색 기록 */}
                   {!isMinimalMode && (
                     <section className="space-y-4 md:space-y-6">
                       <div className="flex justify-between items-end">
@@ -311,7 +322,7 @@ const MyPage = ({
           </div>
         </main>
 
-        {/* 오른쪽 설정 탭 영역 (모바일에서는 스크롤 밑으로 빠짐) */}
+        {/* 오른쪽 설정 탭 영역 */}
         <aside className={`w-full lg:w-80 border-t lg:border-t-0 lg:border-l p-6 md:p-10 flex flex-col shrink-0 transition-colors duration-500 pb-12 lg:pb-10 ${isDarkMode ? 'bg-[#1E293B]/80 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
           <div className="flex items-center justify-between mb-8 md:mb-10 shrink-0">
             <button 
@@ -339,8 +350,15 @@ const MyPage = ({
               {isSeoulDataLoading ? (
                 <div className="h-full flex items-center justify-center text-[11px] md:text-xs animate-pulse">데이터 로드 중...</div>
               ) : (
-                <div className="flex flex-col h-full transition-transform duration-1000 ease-in-out" style={{ transform: `translateY(-${tickerIndex * 100}%)` }}>
-                  {seoulData.slice(0, 6).map((item, idx) => (
+                // 💡 애니메이션 컨트롤 로직 적용
+                <div 
+                  className="flex flex-col h-full w-full" 
+                  style={{ 
+                    transform: `translateY(-${tickerIndex * 100}%)`,
+                    transition: isTransitioning ? 'transform 1s ease-in-out' : 'none'
+                  }}
+                >
+                  {tickerItems.map((item, idx) => (
                     <div key={idx} className="h-full w-full flex flex-col lg:flex-col items-center justify-center p-4 md:p-6 gap-2 md:gap-3 shrink-0">
                       <span className="text-xs md:text-sm font-bold text-slate-400">{item.district}</span>
                       <div className="flex items-center gap-3">
@@ -378,7 +396,7 @@ const MyPage = ({
         </aside>
       </div>
 
-      {/* 즐겨찾기 모달 (모바일에서는 바텀 시트 형태로 아래서 위로 올라옴) */}
+      {/* 즐겨찾기 모달 */}
       {showFavoriteModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in zoom-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowFavoriteModal(false)} />
@@ -433,7 +451,7 @@ const MyPage = ({
         </div>
       )}
 
-      {/* 라이브 디테일 모달 (모바일 바텀 시트) */}
+      {/* 라이브 디테일 모달 */}
       {showDetailModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in zoom-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowDetailModal(false)} />
