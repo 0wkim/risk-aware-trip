@@ -205,23 +205,120 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
   const handleDeleteFavorite = (id: string, e: React.MouseEvent) => { e.stopPropagation(); setFavorites((prev) => prev.filter(item => item.id !== id)); };
   const handleFavoriteClick = (fav: FavoriteItem) => { const targetPlace: BackendPlace = { lat: fav.lat, lng: fav.lng, place_id: fav.place_id, categories: fav.categories, name: fav.name }; if (activeInput === 'start') { setStartPoint(fav.name); setSelectedStartPlace(targetPlace); } else { setDestination(fav.name); setSelectedDestPlace(targetPlace); } };
 
+  // 💡 [핵심 버그 완전 수정]: '현재 위치' 복원 시 좌표 매핑 예외 처리 추가 및 주소 검색(Geocoder) 폴백 연동
   const handleSearchClick = () => {
-    if (!selectedStartPlace || !selectedDestPlace) return alert("출발지와 도착지를 검색 결과 리스트에서 정확히 선택해주세요.");
-    const currentHistory = JSON.parse(localStorage.getItem('search_history') || '[]');
-    const formattedDate = `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`;
-    currentHistory.push({ id: `hist-${Date.now()}`, startPoint, destination, date: formattedDate });
-    localStorage.setItem('search_history', JSON.stringify(currentHistory));
+    if (!startPoint.trim() || !destination.trim()) {
+      return alert("출발지와 도착지를 모두 입력해주세요.");
+    }
 
-    onSearch({
-      startPoint, destination,
-      mode: travelMode, 
-      day: Number(simulatedDay), 
-      hour: Number(simulatedHour), 
-      maxHours: Number(maxHours), maxMinutes: Number(maxMinutes),
-      places: [
-        { lat: Number(selectedStartPlace.lat), lng: Number(selectedStartPlace.lng), place_id: String(selectedStartPlace.place_id), categories: selectedStartPlace.categories, name: String(selectedStartPlace.name) },
-        { lat: Number(selectedDestPlace.lat), lng: Number(selectedDestPlace.lng), place_id: String(selectedDestPlace.place_id), categories: selectedDestPlace.categories, name: String(selectedDestPlace.name) }
-      ]
+    if (!window.kakao || !window.kakao.maps.services) {
+      return alert("지도 데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+    }
+
+    const resolvePlace = (keyword: string, currentPlace: BackendPlace | null): Promise<BackendPlace> => {
+      return new Promise((resolve, reject) => {
+        // 1. 이미 좌표가 매핑되어 있고 텍스트가 정확히 일치하면 그대로 통과
+        if (currentPlace && currentPlace.name === keyword) {
+          resolve(currentPlace);
+          return;
+        }
+
+        // 2. '📍 현재 위치' 패턴인 경우 (localStorage에서 불러와서 좌표가 끊긴 상황 방어)
+        if (keyword.startsWith('📍 현재 위치')) {
+          const match = keyword.match(/\(([^)]+)\)/);
+          const addressOrCoord = match ? match[1].trim() : '';
+
+          if (addressOrCoord) {
+            // 좌표 형태 (위도, 경도) 인지 확인
+            if (addressOrCoord.includes(',') && !isNaN(parseFloat(addressOrCoord.split(',')[0]))) {
+              const [lat, lng] = addressOrCoord.split(',').map(s => parseFloat(s.trim()));
+              resolve({ lat, lng, place_id: 'live_gps_node', categories: ['other'], name: keyword });
+              return;
+            }
+
+            // 한글 주소명일 경우 Geocoder로 좌표 역산
+            const geocoder = new window.kakao.maps.services.Geocoder();
+            geocoder.addressSearch(addressOrCoord, (result: any[], status: any) => {
+              if (status === window.kakao.maps.services.Status.OK && result[0]) {
+                resolve({
+                  lat: parseFloat(result[0].y),
+                  lng: parseFloat(result[0].x),
+                  place_id: 'live_gps_node',
+                  categories: ['other'],
+                  name: keyword
+                });
+              } else {
+                reject(keyword);
+              }
+            });
+            return;
+          }
+        }
+
+        // 3. 일반적인 텍스트 검색 (장소 키워드 검색)
+        const ps = new window.kakao.maps.services.Places();
+        ps.keywordSearch(keyword, (data: any[], status: any) => {
+          if (status === window.kakao.maps.services.Status.OK && data[0]) {
+            const first = data[0];
+            resolve({
+              lat: parseFloat(first.y),
+              lng: parseFloat(first.x),
+              place_id: first.id,
+              categories: [mapToBackendCategory(first.category_name)],
+              name: first.place_name
+            });
+          } else {
+            // 4. 폴백(Fallback): 사용자가 장소명이 아닌 '순수 지번/도로명 주소'를 입력했을 경우
+            const geocoder = new window.kakao.maps.services.Geocoder();
+            geocoder.addressSearch(keyword, (addrData: any[], addrStatus: any) => {
+              if (addrStatus === window.kakao.maps.services.Status.OK && addrData[0]) {
+                resolve({
+                  lat: parseFloat(addrData[0].y),
+                  lng: parseFloat(addrData[0].x),
+                  place_id: 'address_node',
+                  categories: ['other'],
+                  name: keyword
+                });
+              } else {
+                reject(keyword); // 주소 검색마저 실패하면 최종 거절
+              }
+            });
+          }
+        });
+      });
+    };
+
+    // 출발지와 도착지를 동시에 비동기로 검증 & 좌표 자동 파싱
+    Promise.all([
+      resolvePlace(startPoint, selectedStartPlace),
+      resolvePlace(destination, selectedDestPlace)
+    ]).then(([finalStart, finalDest]) => {
+      // 파싱된 최종 좌표를 내부 상태에 자동 적용
+      setSelectedStartPlace(finalStart);
+      setSelectedDestPlace(finalDest);
+      setStartPoint(finalStart.name);
+      setDestination(finalDest.name);
+
+      // 성공 시 히스토리 저장 및 분석 페이지로 점프!
+      const currentHistory = JSON.parse(localStorage.getItem('search_history') || '[]');
+      const formattedDate = `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`;
+      currentHistory.push({ id: `hist-${Date.now()}`, startPoint: finalStart.name, destination: finalDest.name, date: formattedDate });
+      localStorage.setItem('search_history', JSON.stringify(currentHistory));
+
+      onSearch({
+        startPoint: finalStart.name, 
+        destination: finalDest.name,
+        mode: travelMode, 
+        day: Number(simulatedDay), 
+        hour: Number(simulatedHour), 
+        maxHours: Number(maxHours), maxMinutes: Number(maxMinutes),
+        places: [
+          { lat: Number(finalStart.lat), lng: Number(finalStart.lng), place_id: String(finalStart.place_id), categories: finalStart.categories, name: String(finalStart.name) },
+          { lat: Number(finalDest.lat), lng: Number(finalDest.lng), place_id: String(finalDest.place_id), categories: finalDest.categories, name: String(finalDest.name) }
+        ]
+      });
+    }).catch((failedKeyword) => {
+      alert(`'${failedKeyword}'에 대한 장소를 찾을 수 없습니다. 조금 더 정확한 상호명이나 주소를 입력해주세요!`);
     });
   };
 
@@ -299,7 +396,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
 
               <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl border transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                 <MapPin size={16} className={`${activeInput === 'start' ? 'text-blue-500' : 'text-slate-400'} shrink-0 md:w-[18px] md:h-[18px]`} />
-                <input type="text" value={startPoint} onChange={(e) => handleInputChange(e.target.value, 'start')} onFocus={() => { setActiveInput('start'); if(searchResults.length) setShowSearchDropdown('start'); }} placeholder="출발지를 입력하거나 현재 위치 버튼을 누르세요" className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit" />
+                <input type="text" value={startPoint} onChange={(e) => handleInputChange(e.target.value, 'start')} onFocus={() => { setActiveInput('start'); if(searchResults.length) setShowSearchDropdown('start'); }} placeholder="출발지를 입력해주세요" className="bg-transparent outline-none w-full font-bold text-xs md:text-sm text-inherit" />
               </div>
               {showSearchDropdown === 'start' && !isAddingFav && (
                 <div className={`absolute bottom-full mb-1 md:bottom-auto md:top-full left-0 right-0 md:mt-2 max-h-40 md:max-h-48 overflow-y-auto rounded-xl md:rounded-2xl shadow-xl z-50 border p-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white text-slate-700'}`}>

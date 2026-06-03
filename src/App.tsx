@@ -48,11 +48,12 @@ function AppContent() {
     return localStorage.getItem('isDarkMode') === 'true';
   });
 
+  // 💡 [수정됨] 초기 시작 시 빈 문자열로 세팅되도록 변경 완료!
   const [searchParams, setSearchParams] = useState<SearchParams>(() => {
     const saved = localStorage.getItem('searchParams');
     return saved ? JSON.parse(saved) : {
-      startPoint: '성수역 3번 출구',
-      destination: '까치화방 카페 성수점',
+      startPoint: '', 
+      destination: '',
       maxHours: '1',
       maxMinutes: '10'
     };
@@ -134,16 +135,13 @@ function AppContent() {
     navigate('/login');
   };
 
-  // 💡 [버그 완전 박멸]: 대안 장소 적용 시 실시간 리라우팅 경로망 재생 엔진 작동 헤드
   const handleStartAnalysis = async (params: any) => {
-    // 1. ResultPage에서 넘어온 새로운 대안 경로 셋(예: 봉은사 정보 포함)으로 파라미터 스택 동기화 교체
     setSearchParams(params);
     setIsAnalyzing(true);
 
     try {
       const totalBudgetMinutes = (Number(params.maxHours) * 60) + Number(params.maxMinutes);
 
-      // 2. 고정된 구 목적지 대신, 새로 넘어온 params.places 배열 컨텍스트로 위험 요인 검증 찌르기
       const courseEvaluation = await api.evaluateCourse({
         waypoints: params.places, 
         T_max: totalBudgetMinutes,
@@ -153,7 +151,6 @@ function AppContent() {
 
       let finalAlternatives: any[] = [];
 
-      // 3. 만약 대안으로 갈아탄 경로마저 가혹도가 높다면 백엔드 랭킹 스코어 한 번 더 집계
       if (courseEvaluation.verdict !== 'PASS' && courseEvaluation.failed_indices && courseEvaluation.failed_indices.length > 0) {
         const failedIndex = courseEvaluation.failed_indices[0];
         const alternativesResponse = await api.getAlternatives({
@@ -169,11 +166,9 @@ function AppContent() {
         finalAlternatives = alternativesResponse.alternatives || [];
       }
 
-      // 4. 🔥 [핵심 타겟 수정]: 새로 가공되어 들어온 대안 장소(봉은사 등)의 위경도 인자를 파싱
       const routeCoords = params.places.map((p: any) => [p.lat, p.lng]);
       const chosenMode = params.mode || 'transit'; 
 
-      // 5. 백엔드 지도 인프라망에 봉은사 타겟 실시간 실제 정밀 노드 점 궤적 리스트 요청
       const routeData = await api.getRoute({
         coords: routeCoords, 
         mode: chosenMode 
@@ -182,14 +177,13 @@ function AppContent() {
       const unifiedDashboardData = {
         verdict: courseEvaluation.verdict, 
         p_success: courseEvaluation.p_success, 
-        results: params.places, // 💡 기존 고정값 덮어쓰고 새로운 대안 목적지가 바인딩된 결과셋 주입
+        results: params.places, 
         alternatives: finalAlternatives, 
-        route_segments: routeData.segments || routeData.route_segments || [] // 💡 구불구불한 맵 가이드선 동적 전달
+        route_segments: routeData.segments || routeData.route_segments || [] 
       };
       
       setBackendPredictionResult(unifiedDashboardData);
       
-      // 이미 결과 뷰포트(/result)에 도착해 있는 상태라면 중복 렌더링 스택 경합 방지 격리
       if (location.pathname !== '/result') {
         navigate('/result'); 
       }
