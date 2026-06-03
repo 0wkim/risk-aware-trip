@@ -49,39 +49,39 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
   };
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-colors duration-500 ${
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 transition-colors duration-500 ${
       isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'
     }`}>
       {/* 상단 로고 섹션 */}
-      <div className="flex flex-col items-center mb-10 animate-in fade-in zoom-in duration-700">
-        <div className="flex items-center gap-3 mb-3">
+      <div className="flex flex-col items-center mb-8 sm:mb-10 animate-in fade-in zoom-in duration-700">
+        <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">
           <img 
             src="/logo.svg" 
             alt="ArriView Logo" 
-            className="w-12 h-12 object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
+            className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
           />
           
-          <h1 className={`text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className={`text-2xl sm:text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             ArriView
           </h1>
         </div>
-        <p className="text-emerald-500 font-bold text-xs uppercase tracking-[0.2em]">Smart Route Alternatives</p>
+        <p className="text-emerald-500 font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em]">Smart Route Alternatives</p>
       </div>
 
       {/* 카드 섹션 */}
-      <div className={`w-full max-w-[450px] rounded-[2.5rem] shadow-2xl border transition-all duration-500 p-10 ${
+      <div className={`w-full max-w-[450px] rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border transition-all duration-500 p-6 sm:p-8 md:p-10 ${
         isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'
       }`}>
         {/* 탭 전환 버튼 */}
-        <div className={`p-1.5 rounded-full flex gap-1 mb-8 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
-          <button className={`flex-1 py-3.5 rounded-full font-black text-sm transition-all shadow-sm ${
+        <div className={`p-1.5 rounded-full flex gap-1 mb-6 sm:mb-8 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+          <button className={`flex-1 py-3 sm:py-3.5 rounded-full font-black text-xs sm:text-sm transition-all shadow-sm ${
             isDarkMode ? 'bg-slate-700 text-emerald-400' : 'bg-white text-emerald-600'
           }`}>
             로그인
           </button>
           <button 
             onClick={onSwitch}
-            className={`flex-1 py-3.5 rounded-full font-black text-sm transition-all hover:opacity-70 ${
+            className={`flex-1 py-3 sm:py-3.5 rounded-full font-black text-xs sm:text-sm transition-all hover:opacity-70 ${
               isDarkMode ? 'text-slate-500' : 'text-slate-400'
             }`}
           >
@@ -90,21 +90,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
         </div>
 
         {error && (
-          <div className="mb-4 text-xs font-bold text-rose-500 bg-rose-500/10 p-3.5 rounded-xl text-center border border-rose-500/20">
+          <div className="mb-4 text-[11px] sm:text-xs font-bold text-rose-500 bg-rose-500/10 p-3 sm:p-3.5 rounded-xl text-center border border-rose-500/20">
             {error}
           </div>
         )}
 
         {/* 입력 폼 */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
+            <Mail className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors w-4 h-4 sm:w-5 sm:h-5" />
             <input 
               type="email" 
               placeholder="이메일" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
+              className={`w-full pl-10 sm:pl-12 pr-4 py-3.5 sm:py-4 rounded-2xl outline-none border-2 transition-all font-bold text-xs sm:text-sm ${
                 isDarkMode 
                   ? 'bg-slate-800 border-slate-700 focus:border-emerald-500/50 text-white' 
                   : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white text-slate-800'
@@ -113,13 +113,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
           </div>
           
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
+            <Lock className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors w-4 h-4 sm:w-5 sm:h-5" />
             <input 
               type="password" 
               placeholder="비밀번호" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
+              className={`w-full pl-10 sm:pl-12 pr-4 py-3.5 sm:py-4 rounded-2xl outline-none border-2 transition-all font-bold text-xs sm:text-sm ${
                 isDarkMode 
                   ? 'bg-slate-800 border-slate-700 focus:border-emerald-500/50 text-white' 
                   : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white text-slate-800'
@@ -128,53 +128,28 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
           </div>
 
           {/* 보조 도구 */}
-          <div className="flex items-center justify-between mt-5 px-1">
-            <label className="flex items-center gap-2 cursor-pointer group">
+          <div className="flex items-center justify-between mt-4 sm:mt-5 px-1">
+            <label className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group">
               <input 
                 type="checkbox" 
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 accent-emerald-500" 
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 accent-emerald-500" 
               />
-              <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>로그인 유지</span>
+              <span className={`text-[11px] sm:text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>로그인 유지</span>
             </label>
-            <button type="button" className="text-xs text-emerald-500 font-black hover:underline uppercase tracking-tighter">비밀번호 찾기</button>
+            <button type="button" className="text-[11px] sm:text-xs text-emerald-500 font-black hover:underline uppercase tracking-tighter">비밀번호 찾기</button>
           </div>
 
           {/* 로그인 버튼 */}
           <button 
             type="submit"
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-[1.5rem] font-black text-sm mt-8 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 sm:py-5 rounded-2xl sm:rounded-[1.5rem] font-black text-xs sm:text-sm mt-6 sm:mt-8 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
           >
-            Get Started <ArrowRight size={18} />
+            Get Started <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px]" />
           </button>
         </form>
 
-        {/* 소셜 로그인 기능 삭제 (추후 업그레이드) */}
-        {/* 구분선 */}
-        {/* <div className="relative my-10 text-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className={`w-full border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}></div>
-          </div>
-          <span className={`relative px-4 text-[10px] font-black uppercase tracking-[0.3em] ${
-            isDarkMode ? 'bg-[#1E293B] text-slate-500' : 'bg-white text-slate-400'
-          }`}>Social Connect</span>
-        </div> */}
-
-        {/* 소셜 로그인 - 가로 평행 배치 */}
-        {/* <div className="grid grid-cols-2 gap-3">
-          <button onClick={onLogin} type="button" className={`flex items-center justify-center gap-2 py-4 border rounded-2xl font-bold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] ${
-            isDarkMode ? 'border-slate-700 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-700 shadow-sm'
-          }`}>
-            <FcGoogle size={20} /> 
-            <span>Google</span>
-          </button>
-          
-          <button onClick={onLogin} type="button" className="flex items-center justify-center gap-2 py-4 bg-[#FEE500] rounded-2xl font-bold text-xs text-[#3C1E1E] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm">
-            <RiKakaoTalkFill size={20} /> 
-            <span>Kakao</span>
-          </button>
-        </div> */}
       </div>
     </div>
   );

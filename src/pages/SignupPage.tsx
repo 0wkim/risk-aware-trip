@@ -56,40 +56,40 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-colors duration-500 ${
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 transition-colors duration-500 ${
       isDarkMode ? 'bg-[#0F172A]' : 'bg-[#F4F7F9]'
     }`}>
       {/* 상단 로고 */}
-      <div className="flex flex-col items-center mb-10 animate-in fade-in zoom-in duration-700">
-        <div className="flex items-center gap-3 mb-3">
+      <div className="flex flex-col items-center mb-8 sm:mb-10 animate-in fade-in zoom-in duration-700">
+        <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">
           <img 
             src="/logo.svg" 
             alt="ArriView Logo" 
-            className="w-12 h-12 object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
+            className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
           />
           
-          <h1 className={`text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className={`text-2xl sm:text-3xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             ArriView
           </h1>
         </div>
-        <p className="text-emerald-500 font-bold text-xs uppercase tracking-[0.2em]">Smart Route Alternatives</p>
+        <p className="text-emerald-500 font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em]">Smart Route Alternatives</p>
       </div>
 
-      <div className={`w-full max-w-[450px] rounded-[2.5rem] shadow-2xl border transition-all duration-500 p-10 ${
+      <div className={`w-full max-w-[450px] rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border transition-all duration-500 p-6 sm:p-8 md:p-10 ${
         isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'
       }`}>
         {/* 탭 전환 */}
-        <div className={`p-1.5 rounded-full flex gap-1 mb-8 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+        <div className={`p-1.5 rounded-full flex gap-1 mb-6 sm:mb-8 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
           <button 
             onClick={onSwitch}
             type="button"
-            className={`flex-1 py-3.5 rounded-full font-black text-sm transition-all hover:opacity-70 ${
+            className={`flex-1 py-3 sm:py-3.5 rounded-full font-black text-xs sm:text-sm transition-all hover:opacity-70 ${
               isDarkMode ? 'text-slate-500' : 'text-slate-400'
             }`}
           >
             로그인
           </button>
-          <button type="button" className={`flex-1 py-3.5 rounded-full font-black text-sm transition-all shadow-sm ${
+          <button type="button" className={`flex-1 py-3 sm:py-3.5 rounded-full font-black text-xs sm:text-sm transition-all shadow-sm ${
             isDarkMode ? 'bg-slate-700 text-emerald-400' : 'bg-white text-emerald-600'
           }`}>
             회원가입
@@ -97,27 +97,27 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
         </div>
 
         {error && (
-          <div className="mb-4 text-xs font-bold text-rose-500 bg-rose-500/10 p-3.5 rounded-xl text-center border border-rose-500/20">
+          <div className="mb-4 text-[11px] sm:text-xs font-bold text-rose-500 bg-rose-500/10 p-3 sm:p-3.5 rounded-xl text-center border border-rose-500/20">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-4 text-xs font-bold text-emerald-500 bg-emerald-500/10 p-3.5 rounded-xl text-center border border-emerald-500/20">
+          <div className="mb-4 text-[11px] sm:text-xs font-bold text-emerald-500 bg-emerald-500/10 p-3 sm:p-3.5 rounded-xl text-center border border-emerald-500/20">
             {success}
           </div>
         )}
 
-        <form onSubmit={handleSignup} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1.5 block ml-1">Full Name</label>
+            <label className="text-[9px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 sm:mb-1.5 block ml-1">Full Name</label>
             <div className="relative group">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <User className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors w-4 h-4 sm:w-[18px] sm:h-[18px]" />
               <input 
                 type="text" 
                 placeholder="이름" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={`w-full pl-12 pr-4 py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
+                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-xs sm:text-sm ${
                   isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500/50' : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white text-slate-800'
                 }`} 
               />
@@ -125,15 +125,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1.5 block ml-1">Email</label>
+            <label className="text-[9px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 sm:mb-1.5 block ml-1">Email</label>
             <div className="relative group">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Mail className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors w-4 h-4 sm:w-[18px] sm:h-[18px]" />
               <input 
                 type="email" 
                 placeholder="이메일" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`w-full pl-12 pr-4 py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
+                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-xs sm:text-sm ${
                   isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500/50' : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white text-slate-800'
                 }`} 
               />
@@ -141,15 +141,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1.5 block ml-1">Password</label>
+            <label className="text-[9px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 sm:mb-1.5 block ml-1">Password</label>
             <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Lock className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors w-4 h-4 sm:w-[18px] sm:h-[18px]" />
               <input 
                 type="password" 
                 placeholder="비밀번호" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full pl-12 pr-4 py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
+                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-xs sm:text-sm ${
                   isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500/50' : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white text-slate-800'
                 }`} 
               />
@@ -158,15 +158,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
 
           {/* 비밀번호 확인 필드 */}
           <div>
-            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1.5 block ml-1">Confirm Password</label>
+            <label className="text-[9px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1 sm:mb-1.5 block ml-1">Confirm Password</label>
             <div className="relative group">
-              <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <ShieldCheck className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors w-4 h-4 sm:w-[18px] sm:h-[18px]" />
               <input 
                 type="password" 
                 placeholder="비밀번호 확인" 
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full pl-12 pr-4 py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-sm ${
+                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 rounded-2xl outline-none border-2 transition-all font-bold text-xs sm:text-sm ${
                   isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500/50' : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white text-slate-800'
                 }`} 
               />
@@ -177,9 +177,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitch, isDarkMode }) => {
         <button 
           onClick={handleSignup}
           type="button"
-          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-[1.5rem] font-black text-sm mt-8 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
+          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 sm:py-5 rounded-2xl sm:rounded-[1.5rem] font-black text-xs sm:text-sm mt-6 sm:mt-8 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
         >
-          Join Community <ArrowRight size={18} />
+          Join Community <ArrowRight className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
         </button>
 
         {/* ─── 소셜 로그인 영역 주석 처리 시작 ─── */}

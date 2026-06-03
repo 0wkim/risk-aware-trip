@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Map, Polyline, CustomOverlayMap } from "react-kakao-maps-sdk";
 
 interface MapsProps {
@@ -8,101 +8,120 @@ interface MapsProps {
   routeSegments?: Array<{ polyline: Array<[number, number]> }>; 
 }
 
+const startPointToKey = (str: string) => str.replace(/[^a-zA-Z0-9가-힣]/g, "");
+
 const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: MapsProps) => {
   const defaultLat = 37.55465000468857;
   const defaultLng = 126.97059787494679;
 
   const mapRef = useRef<kakao.maps.Map>(null);
-  const [mapCenter, setMapCenter] = useState({ lat: defaultLat, lng: defaultLng });
   
-  const [fullPath, setFullPath] = useState<Array<{ lat: number; lng: number }>>([]);
+  const [mapCenter, setMapCenter] = useState({ 
+    lat: startPlace?.lat || defaultLat, 
+    lng: startPlace?.lng || defaultLng 
+  });
+  
   const [animatedPath, setAnimatedPath] = useState<Array<{ lat: number; lng: number }>>([]);
   const [arrowPosition, setArrowPosition] = useState<{ lat: number; lng: number } | null>(null);
   
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // 실제 구불구불한 도로 폴리라인 배열 평탄화 처리
-  useEffect(() => {
+  const fullPath = useMemo(() => {
     if (!routeSegments || routeSegments.length === 0) {
-      setFullPath([]);
-      setAnimatedPath([]);
-      setArrowPosition(null);
-      return;
+      return [];
     }
-    const paths = routeSegments.flatMap((segment) =>
+    return routeSegments.flatMap((segment) =>
       segment.polyline.map((coord) => ({
         lat: coord[0],
         lng: coord[1],
       }))
     );
-    setFullPath(paths);
   }, [routeSegments]);
 
-  // 로컬스토리지 기반 최초 1회 애니메이션 잠금 엔진
   useEffect(() => {
-    if (fullPath.length === 0 || !startPlace || !destPlace) return;
-
-    // 현재 출발지-목적지를 기준으로 한 고유 경로 키 생성
-    const currentRouteKey = `anim_done_${startPointToKey(startPlace.name)}_${startPointToKey(destPlace.name)}`;
-    
-    // 컴포넌트가 소멸 후 부활해도 로컬스토리지 기억을 조회하여 이미 끝난 주행이면 패스
-    const isAlreadyAnimated = localStorage.getItem(currentRouteKey) === "true";
-
-    if (isAlreadyAnimated) {
-      setAnimatedPath(fullPath);
-      setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng }); // 목적지 자리에 고정 대기
-      setIsAnimating(false);
-      if (mapRef.current) {
-        mapRef.current.setCenter(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
-      }
-      return;
+    if (fullPath.length === 0 || !startPlace || !destPlace) {
+      // 💡 [에러 1 해결] 동기적 setState로 인한 렌더링 충돌(eslint 경고)을 막기 위해 0초 딜레이의 비동기 처리
+      const resetTimer = setTimeout(() => {
+        setAnimatedPath([]);
+        setArrowPosition(null);
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
 
-    // 완전히 처음 보여주는 대안 경로일 때만 인터벌 주행 스타트
-    setAnimatedPath([fullPath[0]]);
-    setArrowPosition(fullPath[0]);
-    setIsAnimating(true);
+    let animationInterval: ReturnType<typeof setInterval> | undefined;
 
-    let currentIndex = 0;
-    const totalPoints = fullPath.length;
-    
-    const intervalTime = Math.max(8, Math.min(25, Math.floor(1200 / totalPoints))); 
-    const cameraUpdateStep = Math.max(3, Math.floor(totalPoints / 30));
+    const currentRouteKey = `anim_done_${startPointToKey(startPlace.name)}_${startPointToKey(destPlace.name)}`;
+    const isAlreadyAnimated = localStorage.getItem(currentRouteKey) === "true";
 
-    const timer = setInterval(() => {
-      if (currentIndex >= totalPoints - 1) {
-        clearInterval(timer);
+    // 💡 [에러 2 해결] let 대신 const를 사용하고 선언과 동시에 할당!
+    const initTimer = setTimeout(() => {
+      // 카카오맵 렌더링/크기 갱신
+      if (mapRef.current) {
+        mapRef.current.relayout(); 
+      }
+
+      if (isAlreadyAnimated) {
         setAnimatedPath(fullPath);
+        setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng });
         setIsAnimating(false);
-        setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng }); // 골인 지점에 안착
-        
-        // 주행이 완료되는 순간 로컬스토리지에 영구 각인 처리
-        localStorage.setItem(currentRouteKey, "true");
-        
-        if (destPlace && mapRef.current) {
+        setMapCenter({ lat: destPlace.lat, lng: destPlace.lng }); 
+        if (mapRef.current) {
           mapRef.current.setCenter(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
         }
         return;
       }
 
-      currentIndex++;
-      const nextPoint = fullPath[currentIndex];
+      setAnimatedPath([fullPath[0]]);
+      setArrowPosition(fullPath[0]);
+      setIsAnimating(true);
       
-      if (nextPoint) {
-        setAnimatedPath((prev) => prev.concat(nextPoint));
-        setArrowPosition(nextPoint);
-
-        if (mapRef.current && (currentIndex % cameraUpdateStep === 0 || currentIndex === totalPoints - 2)) {
-          mapRef.current.panTo(new kakao.maps.LatLng(nextPoint.lat, nextPoint.lng));
-        }
+      setMapCenter({ lat: fullPath[0].lat, lng: fullPath[0].lng });
+      if (mapRef.current) {
+        mapRef.current.setCenter(new kakao.maps.LatLng(fullPath[0].lat, fullPath[0].lng));
       }
-    }, intervalTime);
 
-    return () => clearInterval(timer);
+      let currentIndex = 0;
+      const totalPoints = fullPath.length;
+      
+      const intervalTime = Math.max(8, Math.min(25, Math.floor(1200 / totalPoints))); 
+      const cameraUpdateStep = Math.max(3, Math.floor(totalPoints / 30));
+
+      animationInterval = setInterval(() => {
+        if (currentIndex >= totalPoints - 1) {
+          clearInterval(animationInterval);
+          setAnimatedPath(fullPath);
+          setIsAnimating(false);
+          setArrowPosition({ lat: destPlace.lat, lng: destPlace.lng });
+          
+          localStorage.setItem(currentRouteKey, "true");
+          
+          setMapCenter({ lat: destPlace.lat, lng: destPlace.lng });
+          if (mapRef.current) {
+            mapRef.current.setCenter(new kakao.maps.LatLng(destPlace.lat, destPlace.lng));
+          }
+          return;
+        }
+
+        currentIndex++;
+        const nextPoint = fullPath[currentIndex];
+        
+        if (nextPoint) {
+          setAnimatedPath((prev) => prev.concat(nextPoint));
+          setArrowPosition(nextPoint);
+
+          if (mapRef.current && (currentIndex % cameraUpdateStep === 0 || currentIndex === totalPoints - 2)) {
+            mapRef.current.panTo(new kakao.maps.LatLng(nextPoint.lat, nextPoint.lng));
+          }
+        }
+      }, intervalTime);
+
+    }, 600); // UI 애니메이션 딜레이
+
+    return () => {
+      clearTimeout(initTimer);
+      if (animationInterval) clearInterval(animationInterval);
+    };
   }, [fullPath, startPlace, destPlace]);
-
-  // 키 값에 공백이나 특수문자가 섞여 영구 디스크 저장 시 깨지는 현상을 방어하는 헬퍼 함수
-  const startPointToKey = (str: string) => str.replace(/[^a-zA-Z0-9가-힣]/g, "");
 
   return (
     <div className="w-full h-full relative">
