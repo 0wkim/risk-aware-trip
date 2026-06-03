@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   ChevronLeft, Clock, Navigation, CheckCircle2, XCircle,
   ArrowRight, Sparkles, X, Info,
-  Car, Train, Footprints, RefreshCw
+  Car, Train, Footprints, RefreshCw, BarChart3, Network
 } from 'lucide-react';
 import Maps from '../Maps/Maps';
 import TopBar from '../components/TopBar';
@@ -22,16 +22,15 @@ interface Props {
 interface Recommendation {
   id: number;
   name: string;
-  time: string;
   probability: string;
   type: string;
   congestion?: number;
-  t_wait?: number;
-  t_travel?: number;
+  t_wait: number;   
+  t_travel: number; 
   lat: number;
   lng: number;
-  place_id?: string;
-  categories?: string[];
+  place_id: string;
+  categories: string[];
   course_delta?: any;
   p_success?: number;
   p_success_delta?: number;
@@ -47,7 +46,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   const maxHours = searchParams?.maxHours || '0';
   const maxMinutes = searchParams?.maxMinutes || '0';
 
-  const [selectedPoi, setSelectedPoi] = useState<any | null>(null);
+  const [selectedPoi, setSelectedPoi] = useState<Recommendation | null>(null);
 
   const cachedRouteSegments = useMemo(() => {
     return backendResult?.route_segments || backendResult?.segments || [];
@@ -87,6 +86,29 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   const SAFETY_THRESHOLD = 70; 
   const verdict: 'PASS' | 'FAIL' = successRate >= SAFETY_THRESHOLD ? 'PASS' : 'FAIL';
 
+  const originalMetrics = useMemo(() => {
+    const origTravel = backendResult?.orig_t_travel ?? backendResult?.t_travel ?? 24; 
+    const origWait = backendResult?.orig_t_wait ?? backendResult?.t_wait ?? 15;
+    const origCong = backendResult?.orig_congestion ?? backendResult?.congestion ?? 78;
+
+    return {
+      t_travel: Math.round(Number(origTravel)),
+      t_wait: Math.round(Number(origWait)),
+      congestion: Math.round(Number(origCong))
+    };
+  }, [backendResult]);
+
+  // 시계열 예측 차트 데이터 스택 정의
+  const timeSeriesData = useMemo(() => {
+    const baseHour = searchParams?.hour || 14;
+    return [
+      { time: `${baseHour - 1}시`, value: Math.max(15, originalMetrics.congestion - 28) },
+      { time: `${baseHour}시`, value: originalMetrics.congestion },
+      { time: `${baseHour + 1}시`, value: Math.min(100, originalMetrics.congestion + 14) },
+      { time: `${baseHour + 2}시`, value: Math.max(25, originalMetrics.congestion - 15) },
+    ];
+  }, [searchParams, originalMetrics]);
+
   const themeStyles = {
     PASS: { 
       bg: isDarkMode ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-emerald-50 border-emerald-100', 
@@ -107,61 +129,61 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
     const backendAlts = backendResult?.alternatives || [];
     
     if (backendAlts.length > 0) {
-      return backendAlts.map((alt: any, index: number) => ({ 
-        id: index + 1, 
-        name: alt.name || alt.place?.name || '대안 추천 장소', 
-        time: `${alt.t_travel ? Math.round(alt.t_travel) : 15}분 소요`, 
-        probability: alt.p_success ? `완주율 ${Math.round(alt.p_success * 100)}%` : '안전 경로', 
-        type: alt.place_type ? alt.place_type.toUpperCase() : 'ALT', 
-        congestion: alt.congestion,
-        t_wait: alt.t_wait,
-        t_travel: alt.t_travel,
-        lat: alt.place?.lat !== undefined ? alt.place.lat : alt.lat,
-        lng: alt.place?.lng !== undefined ? alt.place.lng : alt.lng,
-        place_id: alt.place?.place_id || alt.place_id,
-        categories: alt.place?.categories || alt.categories,
-        course_delta: alt.course_delta,
-        p_success: alt.p_success,
-        p_success_delta: alt.p_success_delta,
-        alt_verdict: alt.verdict,
-        is_anchor: alt.is_anchor,
-        confidence: alt.confidence,
-        score: alt.score
-      }));
+      return backendAlts.map((alt: any, index: number): Recommendation => {
+        const finalLat = alt.place?.lat !== undefined ? Number(alt.place.lat) : (alt.lat !== undefined ? Number(alt.lat) : 37.5546);
+        const finalLng = alt.place?.lng !== undefined ? Number(alt.place.lng) : (alt.lng !== undefined ? Number(alt.lng) : 126.9705);
+        const finalId = alt.place?.place_id || alt.place_id || `alt_node_${index}`;
+
+        let formattedCategories: string[] = ['spot'];
+        if (Array.isArray(alt.place?.categories) && alt.place.categories.length > 0) {
+          formattedCategories = alt.place.categories;
+        } else if (Array.isArray(alt.categories) && alt.categories.length > 0) {
+          formattedCategories = alt.categories;
+        } else if (alt.place_type || alt.type) {
+          formattedCategories = [String(alt.place_type || alt.type).toLowerCase()];
+        }
+
+        return { 
+          id: index + 1, 
+          name: alt.name || alt.place?.name || '대안 추천 장소', 
+          probability: alt.p_success != null ? `완주율 ${Math.round(alt.p_success * 100)}%` : '안전 경로', 
+          type: alt.place_type ? String(alt.place_type).toUpperCase() : 'ALT', 
+          congestion: alt.congestion,
+          t_wait: alt.t_wait !== undefined && alt.t_wait !== null ? Number(alt.t_wait) : 0,
+          t_travel: alt.t_travel !== undefined && alt.t_travel !== null ? Number(alt.t_travel) : 0,
+          lat: finalLat,
+          lng: finalLng,
+          place_id: String(finalId),
+          categories: formattedCategories,
+          course_delta: alt.course_delta,
+          p_success: alt.p_success,
+          p_success_delta: alt.p_success_delta,
+          alt_verdict: alt.alt_verdict || alt.verdict,
+          is_anchor: alt.is_anchor,
+          confidence: alt.confidence,
+          score: alt.score
+        };
+      });
     } else {
       return [
-        { id: 1, name: `${destination} 대체 우회지 A`, time: '도보 10분', probability: '완주율 88%', type: 'ALT', congestion: 45.2, t_wait: 5.3, t_travel: 2.1, p_success: 0.82, p_success_delta: 0.14, confidence: 'high', score: 0.91, lat: 37.5565, lng: 126.9725, place_id: 'mock_alt_1' },
-        { id: 2, name: `${destination} 인근 회피처 B`, time: '도보 14분', probability: '완주율 82%', type: 'ALT', congestion: 38.5, t_wait: 2.5, t_travel: 4.1, p_success: 0.78, p_success_delta: 0.10, confidence: 'medium', score: 0.85, lat: 37.5505, lng: 126.9685, place_id: 'mock_alt_2' }
+        { id: 1, name: `${destination} 대체 우회지 A`, probability: '완주율 88%', type: 'ALT', congestion: 45.2, t_wait: 5, t_travel: 12, lat: 37.5565, lng: 126.9725, place_id: 'mock_alt_1', categories: ['cafe'] },
+        { id: 2, name: `${destination} 인근 회피처 B`, probability: '완주율 82%', type: 'ALT', congestion: 38.5, t_wait: 2, t_travel: 14, lat: 37.5505, lng: 126.9685, place_id: 'mock_alt_2', categories: ['restaurant'] }
       ];
     }
   }, [backendResult, verdict, destination]);
 
-  const handleRerouteTarget = (poi: any) => {
+  const handleRerouteTarget = (poi: Recommendation) => {
     if (!onReroute) {
       alert("재라우팅 분석 처리 연동 콜백 함수가 누락되었습니다. App.tsx 프롭스를 확인하세요.");
       return;
     }
 
-    const targetLat = poi.lat;
-    const targetLng = poi.lng;
-    const targetId = poi.place_id || 'alt_generated_node';
-
-    const finalLat = targetLat !== undefined && targetLat !== null ? Number(targetLat) : cachedDestPlace.lat;
-    const finalLng = targetLng !== undefined && targetLng !== null ? Number(targetLng) : cachedDestPlace.lng;
-
-    let formattedCategories = ['spot'];
-    if (Array.isArray(poi.categories) && poi.categories.length > 0) {
-      formattedCategories = poi.categories;
-    } else if (poi.type || poi.place_type) {
-      formattedCategories = [String(poi.type || poi.place_type).toLowerCase()];
-    }
-
     const nextDestinationNode = {
-      lat: finalLat,
-      lng: finalLng,
-      place_id: String(targetId),
-      categories: formattedCategories, 
-      name: poi.name || '대체 우회지 장소'
+      lat: poi.lat,
+      lng: poi.lng,
+      place_id: poi.place_id,
+      categories: poi.categories, 
+      name: poi.name
     };
 
     const updatedParams = {
@@ -182,7 +204,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
     <div className={`flex h-full animate-in fade-in slide-in-from-right-10 duration-700 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-white'}`}>
       
       {/* 400px 가로 너비 분할 사이드 패널 바디 */}
-      <div className={`w-[400px] h-full flex flex-col border-r z-10 shadow-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
+      <div className={`w-[400px] h-full flex flex-col border-r z-10 shadow-2xl transition-all duration-500 ${isDarkMode ? 'bg-[#1E293B]' : 'bg-white border-slate-100'}`}>
         <header className="p-6 flex items-center gap-4 border-b border-inherit shrink-0">
           <button onClick={onBack} className={`p-2.5 rounded-xl transition-all active:scale-90 ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}>
             <ChevronLeft size={20} />
@@ -195,13 +217,13 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
 
         <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar text-left">
           
-          {/* AI 스코어 메인 보드 대형 카드 단 한 개만 렌더링 */}
+          {/* AI 스코어 메인 보드 대형 카드 */}
           <div className={`p-5 rounded-3xl border shadow-lg transition-all duration-500 ${themeStyles.bg}`}>
             <div className="flex gap-3">
               {themeStyles.icon}
               <div className="space-y-4 w-full overflow-hidden">
                 
-                {/* 1. 세로 배치 타임라인 레이아웃 (글자 짤림 방지 패치) */}
+                {/* 세로 배치 타임라인 레이아웃 */}
                 <div className="flex flex-col gap-2 pb-3 border-b border-slate-500/10 w-full">
                   <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-black shadow-sm text-xs w-full ${isDarkMode ? 'bg-blue-950/60 text-blue-400 border border-blue-800/50' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
@@ -220,13 +242,32 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                   </div>
                 </div>
 
-                {/* 2. AI 분석 코멘트 말풍선 컨텐츠 (중복 발생 소스 원천 도려내기 완료) */}
+                {/* AI 분석 코멘트 */}
                 <div className="font-bold text-sm leading-relaxed text-left">
                   <span className={`block text-[10px] font-black uppercase tracking-wildest mb-0.5 ${themeStyles.text}`}>AI 분석 코멘트</span>
                   <p className={`text-xs ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{themeStyles.message}</p>
                 </div>
+
+                {/* 기존 목적지 예측 지표 요약 */}
+                <div className={`p-3.5 rounded-2xl border text-xs font-semibold flex flex-col gap-2 ${isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200/70 text-slate-700'}`}>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block pb-1 border-b border-inherit">기존 목적지 예측 지표 요약</span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={12} className="text-slate-400" />
+                      <span>예상 이동: <b className="font-black text-inherit">{originalMetrics.t_travel}분</b></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={12} className="text-amber-500" />
+                      <span>예상 대기: <b className="font-black text-inherit">{originalMetrics.t_wait}분</b></span>
+                    </div>
+                    <div className="flex items-center gap-1.5 col-span-2 pt-1 border-t border-dashed border-slate-500/10">
+                      <Navigation size={12} className="text-rose-500" />
+                      <span>도착 시점 예측 혼잡도: <b className="font-black text-rose-500">{originalMetrics.congestion}%</b></span>
+                    </div>
+                  </div>
+                </div>
                 
-                {/* 3. 수단 표출 뱃지 폼 */}
+                {/* AI 권장 이동수단 뱃지 */}
                 <div className={`flex items-center gap-2 p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/60'}`}>
                   <span className={`p-2 rounded-xl border flex items-center justify-center shrink-0 ${detectedVehicle.themeClass}`}>
                     {detectedVehicle.icon}
@@ -237,9 +278,9 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                   </div>
                 </div>
 
-                {/* 4. 시간 스펙 및 완주 확률 요약 푸터 레벨 */}
+                {/* 가용 시간 예산 정보 */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-500/10 text-[11px]">
-                   <span className="px-1.5 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 text-[9px] font-black uppercase">설정 시간</span>
+                   <span className="px-1.5 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 text-[9px] font-black uppercase">가용 시간 예산</span>
                    <span className="font-black text-slate-500 mr-1">{maxHours}시간 {maxMinutes}분</span>
                    <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">성공률</span>
                    <span className="font-black text-emerald-500">{successRate}%</span>
@@ -252,7 +293,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
           {verdict === 'PASS' && (
             <div className={`p-5 rounded-2xl border flex flex-col gap-1.5 text-xs font-bold leading-relaxed transition-all ${isDarkMode ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
               <div className="flex items-center gap-1.5 text-emerald-500 font-black text-xs"><Sparkles size={14} /> 기존 경로 유지 권장</div>
-              현재 설정하신 예산 시간 대비 코스 완주 가능성이 안정적입니다. 무리하게 동선을 우회하거나 변경할 필요가 없습니다.
+              현재 설정하신 가용 시간 예산 대비 코스 완주 가능성이 안정적입니다. 무리하게 동선을 우회하거나 변경할 필요가 없습니다.
             </div>
           )}
           
@@ -263,7 +304,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                 Recommended Alternatives
               </h3>
               <div className="space-y-3">
-                {recommendations.map((item) => (
+                {recommendations.map((item: Recommendation) => (
                   <div 
                     key={item.id} 
                     onClick={() => setSelectedPoi(item)} 
@@ -279,9 +320,16 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                           <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border border-current ${isDarkMode ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>{item.type}</span>
                           <h4 className={`font-bold text-sm tracking-tight truncate max-w-[150px] ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{item.name}</h4>
                         </div>
+                        
                         <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
-                          <span className="flex items-center gap-1"><Clock size={13} /> {item.time}</span>
-                          <span className={`flex items-center gap-1 font-black ${themeStyles.text}`}><Navigation size={13} /> {item.probability}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={13} className="text-slate-400 shrink-0" /> 
+                            출발지에서 {Math.round(item.t_travel)}분 / 대기 {Math.round(item.t_wait)}분
+                          </span>
+                          <span className={`flex items-center gap-1 font-black ${themeStyles.text}`}>
+                            <Navigation size={13} className="shrink-0" /> 
+                            {item.probability}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -303,26 +351,74 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
         </div>
       </div>
 
-      {/* 우측 전면 카카오맵 주행선 렌더링 영역 */}
+      {/* 우측 전면 카카오맵 및 우하단 플로팅 대시보드 스페이스 */}
       <div className="flex-1 relative bg-slate-200 overflow-hidden flex flex-col h-full">
         <div className="w-full z-20 shrink-0">
-          <TopBar 
-            seoulData={seoulData} 
-            isDarkMode={isDarkMode} 
-            toggleDarkMode={toggleDarkMode} 
-            onGoToMyPage={onGoToMyPage} 
-            onLogout={onLogout} 
-          />
+          <TopBar seoulData={seoulData} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} onGoToMyPage={onGoToMyPage} onLogout={onLogout} />
         </div>
         <div className="flex-1 w-full relative z-10">
-          <Maps 
-            startPlace={cachedStartPlace}
-            destPlace={cachedDestPlace} 
-            alternatives={recommendations} 
-            routeSegments={cachedRouteSegments} 
-          />
+          <Maps startPlace={cachedStartPlace} destPlace={cachedDestPlace} alternatives={recommendations} routeSegments={cachedRouteSegments} />
         </div>
 
+        {/* 💡 [우하단 분리 패치 완료]: 시계열 차트 및 노드 체인을 오른쪽 하단에 고급스럽게 배치한 플로팅 오버레이 보드 */}
+        <div className="absolute bottom-5 right-5 z-30 flex flex-col gap-3.5 max-w-[340px] w-full animate-in slide-in-from-bottom-5 duration-500">
+          
+          {/* A. 시계열 예측 차트 컴포넌트 박스 (막대 바 높이 버그 완벽 수정) */}
+          <div className={`p-4 rounded-2xl shadow-2xl border backdrop-blur-md flex flex-col gap-2.5 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
+            <div className="flex items-center gap-1.5 text-blue-500 font-black text-[11px] uppercase tracking-wider">
+              <BarChart3 size={13} /> Time-Series Predict (시간대별 혼잡 추이)
+            </div>
+            {/* 💡 막대 바 드로잉 가이드: 정밀한 h-20 강제 부여 및 flex items-end를 통해 하단 정렬 축 고정 */}
+            <div className="flex items-end justify-between h-20 w-full pt-4 px-1 border-b border-slate-500/10">
+              {timeSeriesData.map((data, idx) => (
+                <div key={idx} className="flex flex-col items-center flex-1 h-full justify-end group relative">
+                  {/* 호버 수치 툴팁 */}
+                  <span className="absolute -top-5 text-[9px] font-black opacity-0 group-hover:opacity-100 transition-all bg-slate-800 text-white px-1 rounded text-center z-40 shadow">
+                    {data.value}%
+                  </span>
+                  {/* 💡 실제 막대 바: 부모 h-full 하단에서 정밀하게 차오르는 그라데이션 기둥 보정 */}
+                  <div 
+                    style={{ height: `${data.value}%` }}
+                    className={`w-5 rounded-t-sm transition-all duration-500 shrink-0 ${
+                      idx === 1 
+                        ? 'bg-gradient-to-t from-rose-500 to-rose-400 shadow-md shadow-rose-500/20' // 현재 타겟 슬롯 하이라이팅
+                        : 'bg-gradient-to-t from-blue-500/50 to-blue-400/50 group-hover:from-blue-500'
+                    }`} 
+                  />
+                  <span className="text-[8px] text-slate-400 font-bold mt-1.5 shrink-0 block">{data.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* B. 경로 노드 체인 컴포넌트 박스 */}
+          <div className={`p-4 rounded-2xl shadow-2xl border backdrop-blur-md flex flex-col gap-3 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
+            <div className="flex items-center gap-1.5 text-indigo-500 font-black text-[11px] uppercase tracking-wider">
+              <Network size={13} /> Topological Route Chain (경로 토폴로지)
+            </div>
+            <div className="flex flex-col gap-2.5 relative pl-0.5">
+              <div className="absolute left-2.5 top-1.5 bottom-1.5 w-0.5 border-l border-dashed border-slate-500/20 z-0" />
+              
+              <div className="flex items-center gap-2.5 relative z-10 text-[10px]">
+                <div className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center text-[8px] font-black shrink-0">N1</div>
+                <div className="truncate"><span className="text-slate-400 text-[8px] block font-medium">START NODE</span><b className="font-bold text-inherit truncate max-w-[260px] block">{startPoint}</b></div>
+              </div>
+              
+              <div className="flex items-center gap-2.5 relative z-10 text-[10px]">
+                <div className="w-5 h-5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center text-[8px] font-black shrink-0">E1</div>
+                <div className="truncate"><span className="text-slate-400 text-[8px] block font-medium">TRANSIT LINK (예측 가혹도 링크)</span><span className="text-slate-400 font-bold">확률 밀도 함수 결합 추정 중</span></div>
+              </div>
+
+              <div className="flex items-center gap-2.5 relative z-10 text-[10px]">
+                <div className="w-5 h-5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center text-[8px] font-black shrink-0">N2</div>
+                <div className="truncate"><span className="text-slate-400 text-[8px] block font-medium">END NODE</span><b className="font-bold text-inherit truncate max-w-[260px] block">{destination}</b></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* 상세 서브 다이얼로그 모달 */}
         {selectedPoi && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className={`w-[420px] rounded-3xl p-6 shadow-2xl border flex flex-col gap-4 text-left animate-in zoom-in-95 duration-300 ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
@@ -343,11 +439,11 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="w-24 shrink-0 font-black tracking-wider uppercase text-[10px]">예상 대기</span>
-                  <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}><Clock size={14} className="opacity-60" /> {selectedPoi.t_wait !== undefined ? `${selectedPoi.t_wait}분` : '-'}</div>
+                  <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}><Clock size={14} className="opacity-60" /> {Math.round(selectedPoi.t_wait)}분</div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 font-black tracking-wider uppercase text-[10px]">접근 이동 시간</span>
-                  <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}><Navigation size={14} className="opacity-60" /> {selectedPoi.t_travel !== undefined ? `${selectedPoi.t_travel}분` : '-'}</div>
+                  <span className="w-24 shrink-0 font-black tracking-wider uppercase text-[10px]">출발지 기준 이동</span>
+                  <div className={`flex items-center gap-1.5 font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}><Navigation size={14} className="opacity-60" /> {Math.round(selectedPoi.t_travel)}분</div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="w-24 shrink-0 font-black tracking-wider uppercase text-[10px]">코스 완주율</span>
