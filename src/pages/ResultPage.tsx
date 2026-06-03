@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   ChevronLeft, Clock, Navigation, CheckCircle2, XCircle,
   ArrowRight, Sparkles, X, Info,
@@ -48,7 +48,35 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
 
   const [selectedPoi, setSelectedPoi] = useState<Recommendation | null>(null);
 
-  // 💡 백엔드 결과값이 온전히 도착했는지 확인하는 플래그 (안전장치)
+  // 💡 모바일 바텀시트 펼침/접힘 상태 관리
+  const [isPanelExpanded, setIsPanelExpanded] = useState(true);
+
+  // 💡 터치 드래그 거리 계산용 Ref
+  const touchStartY = useRef(0);
+  const touchEndY = useRef(0);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.targetTouches[0].clientY;
+    touchEndY.current = e.targetTouches[0].clientY;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndY.current = e.targetTouches[0].clientY;
+  };
+
+  const onTouchEnd = () => {
+    const deltaY = touchEndY.current - touchStartY.current;
+    if (deltaY > 40) {
+      setIsPanelExpanded(false); // 아래로 드래그 시 접기
+    } else if (deltaY < -40) {
+      setIsPanelExpanded(true); // 위로 드래그 시 펴기
+    }
+  };
+
+  const togglePanel = () => {
+    setIsPanelExpanded(prev => !prev);
+  };
+
   const isDataReady = useMemo(() => {
     return backendResult && Object.keys(backendResult).length > 0;
   }, [backendResult]);
@@ -103,7 +131,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
     };
   }, [backendResult]);
 
-  // 시계열 예측 차트 데이터 스택 정의
   const timeSeriesData = useMemo(() => {
     const baseHour = searchParams?.hour || 14;
     return [
@@ -205,10 +232,8 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
     onReroute(updatedParams); 
   };
 
-  // 💡 공통 대시보드 위젯 (데스크탑: 플로팅, 모바일: 패널 내부 하단 삽입용)
   const dashboardWidgets = (
     <div className="flex flex-col gap-3.5 w-full">
-      {/* A. 시계열 예측 차트 컴포넌트 박스 */}
       <div className={`p-4 rounded-2xl shadow-lg md:shadow-2xl border backdrop-blur-md flex flex-col gap-2.5 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
         <div className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] md:text-[11px] uppercase tracking-wider">
           <BarChart3 className="md:w-[13px] md:h-[13px] w-3 h-3" /> Time-Series Predict (시간대별 혼잡 추이)
@@ -233,7 +258,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
         </div>
       </div>
 
-      {/* B. 경로 노드 체인 컴포넌트 박스 */}
       <div className={`p-4 rounded-2xl shadow-lg md:shadow-2xl border backdrop-blur-md flex flex-col gap-3 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
         <div className="flex items-center gap-1.5 text-indigo-500 font-black text-[10px] md:text-[11px] uppercase tracking-wider">
           <Network className="md:w-[13px] md:h-[13px] w-3 h-3" /> Topological Route Chain
@@ -263,23 +287,40 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   return (
     <div className={`flex flex-col md:flex-row h-[100dvh] md:h-screen animate-in fade-in slide-in-from-right-10 duration-700 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-white'}`}>
       
-      {/* 400px 가로 너비 분할 사이드 패널 바디 (모바일: 하단 바텀시트, 데스크탑: 좌측 고정) */}
-      <div className={`order-2 md:order-1 w-full md:w-[400px] h-[55vh] md:h-full flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-all duration-500 rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 ${isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'}`}>
+      {/* 패널 영역 (모바일: 하단 바텀시트, 데스크탑: 좌측 고정) */}
+      <div 
+        className={`order-2 md:order-1 w-full md:w-[400px] flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-[height] duration-500 ease-in-out rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 overflow-hidden ${
+          isPanelExpanded ? 'h-[60vh] md:h-full' : 'h-[85px] md:h-full'
+        } ${isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'}`}
+      >
         
-        {/* 모바일용 드래그 핸들 */}
-        <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-1 md:hidden shrink-0" />
+        {/* 💡 터치/드래그 인식 헤더 영역 (여기 잡고 내리거나 클릭하면 동작!) */}
+        <div 
+          className="shrink-0 w-full cursor-pointer touch-none"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onClick={togglePanel}
+        >
+          {/* 모바일용 드래그 핸들 */}
+          <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-2 md:hidden" />
 
-        <header className="px-5 py-3 md:p-6 flex items-center gap-3 md:gap-4 border-b border-inherit shrink-0">
-          <button onClick={onBack} className={`p-2 md:p-2.5 rounded-xl transition-all active:scale-90 ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}>
-            <ChevronLeft className="md:w-5 md:h-5 w-4 h-4" />
-          </button>
-          <div className="text-left">
-            <h1 className={`text-base md:text-lg font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>분석 결과</h1>
-            <p className="text-[9px] md:text-[10px] font-black text-emerald-500 uppercase tracking-widest">Analysis Dashboard</p>
-          </div>
-        </header>
+          <header className="px-5 pb-3 md:p-6 flex items-center gap-3 md:gap-4 border-b border-inherit">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onBack(); }} 
+              className={`p-2 md:p-2.5 rounded-xl transition-all active:scale-90 ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}
+            >
+              <ChevronLeft className="md:w-5 md:h-5 w-4 h-4" />
+            </button>
+            <div className="text-left flex-1">
+              <h1 className={`text-base md:text-lg font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>분석 결과</h1>
+              <p className="text-[9px] md:text-[10px] font-black text-emerald-500 uppercase tracking-widest">Analysis Dashboard</p>
+            </div>
+          </header>
+        </div>
 
-        <div className="flex-1 p-5 md:p-6 space-y-5 md:space-y-6 overflow-y-auto custom-scrollbar text-left">
+        {/* 💡 컨텐츠 영역: 패널이 접히면 내용이 부드럽게 숨겨집니다 */}
+        <div className={`flex-1 p-5 md:p-6 space-y-5 md:space-y-6 overflow-y-auto custom-scrollbar text-left transition-opacity duration-300 ${!isPanelExpanded ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
           
           {/* AI 스코어 메인 보드 대형 카드 */}
           <div className={`p-4 md:p-5 rounded-2xl md:rounded-3xl border shadow-lg transition-all duration-500 ${themeStyles.bg}`}>
@@ -421,8 +462,8 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
         </div>
       </div>
 
-      {/* 우측 전면 카카오맵 및 우하단 플로팅 대시보드 스페이스 (모바일: 상단, 데스크탑: 우측) */}
-      <div className="order-1 md:order-2 flex-1 relative bg-slate-200 overflow-hidden flex flex-col h-[45vh] md:h-full z-10">
+      {/* 지도 영역 (모바일: 상단, 데스크탑: 우측) */}
+      <div className="order-1 md:order-2 flex-1 relative bg-slate-200 overflow-hidden flex flex-col h-full z-10">
         <div className="w-full z-20 shrink-0">
           <TopBar seoulData={seoulData} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} onGoToMyPage={onGoToMyPage} onLogout={onLogout} />
         </div>
