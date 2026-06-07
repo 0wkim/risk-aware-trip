@@ -105,7 +105,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
     // 1. 총 예상 이동 시간
     const origTravel = backendResult?.total_time_expected ?? 0;
     // 2. 총 예상 대기/지연 시간
-    const origWait = backendResult?.overhead_time_expected ?? 0;
+    const origWait = backendResult?.waypoints?.[1]?.t_wait ?? 0;
     
     // 3. 목적지 혼잡도 (waypoints 배열에서 도착지 데이터 뽑기)
     const waypoints = backendResult?.waypoints || [];
