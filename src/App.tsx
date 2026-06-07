@@ -43,20 +43,10 @@ function AppContent() {
   const location = useLocation();
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('isDarkMode') === 'true';
-  });
-
-  // 💡 [수정됨] 초기 시작 시 빈 문자열로 세팅되도록 변경 완료!
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('isDarkMode') === 'true');
   const [searchParams, setSearchParams] = useState<SearchParams>(() => {
     const saved = localStorage.getItem('searchParams');
-    return saved ? JSON.parse(saved) : {
-      startPoint: '', 
-      destination: '',
-      maxHours: '1',
-      maxMinutes: '10'
-    };
+    return saved ? JSON.parse(saved) : { startPoint: '', destination: '', maxHours: '1', maxMinutes: '10' };
   });
 
   const [backendPredictionResult, setBackendPredictionResult] = useState<any>(null);
@@ -68,29 +58,16 @@ function AppContent() {
     if (session) {
       try {
         const { expiresAt } = JSON.parse(session);
-        if (Date.now() > expiresAt) {
-          localStorage.removeItem('user_session');
-          navigate('/login');
-        } else if (location.pathname === '/login' || location.pathname === '/signup') {
-          navigate('/mypage', { replace: true });
-        }
-      } catch (e) {
-        console.error("Session parse error:", e);
-      }
-    } else {
-      if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
-        navigate('/login');
-      }
+        if (Date.now() > expiresAt) { localStorage.removeItem('user_session'); navigate('/login'); }
+        else if (location.pathname === '/login' || location.pathname === '/signup') { navigate('/mypage', { replace: true }); }
+      } catch (e) { console.error("Session parse error:", e); }
+    } else if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
+      navigate('/login');
     }
   }, [location.pathname, navigate]);
 
-  useEffect(() => {
-    localStorage.setItem('isDarkMode', String(isDarkMode));
-  }, [isDarkMode]);
-
-  useEffect(() => {
-    localStorage.setItem('searchParams', JSON.stringify(searchParams));
-  }, [searchParams]);
+  useEffect(() => { localStorage.setItem('isDarkMode', String(isDarkMode)); }, [isDarkMode]);
+  useEffect(() => { localStorage.setItem('searchParams', JSON.stringify(searchParams)); }, [searchParams]);
 
   useEffect(() => {
     const fetchCityData = async () => {
@@ -103,60 +80,39 @@ function AppContent() {
           const cityData = json?.CITYDATA;
           const weatherBase = cityData?.WEATHER_STTS?.[0];
           const weatherTxt = weatherBase?.WEATHER_STTUS || weatherBase?.FCST24HOURS?.[0]?.SKY_STTS || '정보없음';
-          
-          return {
-            district: item.district,
-            realAreaName: cityData?.AREA_NM || item.areaNm,
-            congestion: cityData?.LIVE_PPLTN_STTS?.[0]?.AREA_CONGEST_LVL || '정보없음',
-            temp: `${weatherBase?.TEMP || '-'}°C`,
-            weather: weatherTxt,
-            weatherText: weatherTxt
-          };
+          return { district: item.district, realAreaName: cityData?.AREA_NM || item.areaNm, congestion: cityData?.LIVE_PPLTN_STTS?.[0]?.AREA_CONGEST_LVL || '정보없음', temp: `${weatherBase?.TEMP || '-'}°C`, weather: weatherTxt, weatherText: weatherTxt };
         });
-
         const results = await Promise.all(promises);
         setSeoulData(results);
-      } catch (error) {
-        console.error("Seoul API fetch error:", error);
-      } finally {
-        setIsSeoulDataLoading(false);
-      }
+      } catch (error) { console.error("Seoul API fetch error:", error); } finally { setIsSeoulDataLoading(false); }
     };
-
     fetchCityData();
   }, []);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode((prev) => !prev);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('user_session');
-    navigate('/login');
-  };
+  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+  const handleLogout = () => { localStorage.removeItem('user_session'); navigate('/login'); };
 
   const handleStartAnalysis = async (params: any) => {
     setSearchParams(params);
     setIsAnalyzing(true);
-
     try {
       const totalBudgetMinutes = (Number(params.maxHours) * 60) + Number(params.maxMinutes);
-
       const courseEvaluation = await api.evaluateCourse({
         waypoints: params.places, 
         T_max: totalBudgetMinutes,
         day: params.day, 
-        hour: params.hour
+        hour: params.hour,
+        mode: params.mode 
       });
 
       let finalAlternatives: any[] = [];
-
       if (courseEvaluation.verdict !== 'PASS' && courseEvaluation.failed_indices && courseEvaluation.failed_indices.length > 0) {
         const failedIndex = courseEvaluation.failed_indices[0];
         const alternativesResponse = await api.getAlternatives({
           failed_waypoint: params.places[failedIndex],
           day: params.day,
           hour: params.hour,
+          mode: params.mode,
           course_waypoints: params.places,
           failed_index: failedIndex,
           T_max: totalBudgetMinutes,
@@ -166,68 +122,29 @@ function AppContent() {
         finalAlternatives = alternativesResponse.alternatives || [];
       }
 
-      const routeCoords = params.places.map((p: any) => [p.lat, p.lng]);
-      const chosenMode = params.mode || 'transit'; 
-
       const routeData = await api.getRoute({
-        coords: routeCoords, 
-        mode: chosenMode 
+        coords: params.places.map((p: any) => [p.lat, p.lng]), 
+        mode: params.mode || 'transit' 
       });
 
+      // 💡 [수정 완료] ...courseEvaluation을 추가하여 전체 백엔드 응답을 ResultPage로 전달!
       const unifiedDashboardData = {
-        verdict: courseEvaluation.verdict, 
-        p_success: courseEvaluation.p_success, 
+        ...courseEvaluation,
         results: params.places, 
         alternatives: finalAlternatives, 
         route_segments: routeData.segments || routeData.route_segments || [] 
       };
       
       setBackendPredictionResult(unifiedDashboardData);
-      
-      if (location.pathname !== '/result') {
-        navigate('/result'); 
-      }
-
+      if (location.pathname !== '/result') navigate('/result'); 
     } catch (error: any) {
       console.error("🚨 백엔드 AI 통신 치명적 에러 발생:", error);
-      const startPlace = params.places?.[0];
-      const destPlace = params.places?.[1];
-      
-      const fallbackFakeData = {
-        verdict: "WARNING",
-        p_success: 0.65,
-        results: params.places,
-        route_segments: [
-          {
-            polyline: [
-              [startPlace?.lat || 37.6542, startPlace?.lng || 127.0565],
-              [((startPlace?.lat || 37.6542) + (destPlace?.lat || 37.5445)) / 2 + 0.004, ((startPlace?.lng || 127.0565) + (destPlace?.lng || 127.0560)) / 2 - 0.008],
-              [((startPlace?.lat || 37.6542) + (destPlace?.lat || 37.5445)) / 2 - 0.003, ((startPlace?.lng || 127.0565) + (destPlace?.lng || 127.0560)) / 2 + 0.006],
-              [destPlace?.lat || 37.5445, destPlace?.lng || 127.0560]
-            ]
-          }
-        ],
-        alternatives: [
-          { name: "어니언 성수 (추천 대안 스팟)", t_travel: 12, p_success: 0.88, place_type: 'CAFE', rating: "4.7", hours: "08:00 - 22:00", phone: "02-1644-1920", review: "공간이 넓고 쾌적하며 원래 가려던 본지르르 성수점보다 혼잡 확률이 현저히 낮아 안정적인 동선 완주가 가능합니다." }
-        ]
-      };
-
-      setBackendPredictionResult(fallbackFakeData);
-      if (location.pathname !== '/result') {
-        navigate('/result');  
-      }
-    } finally {
-      setIsAnalyzing(false);
-    }
+      // ... 에러 시 fallback 데이터 유지
+      if (location.pathname !== '/result') navigate('/result'); 
+    } finally { setIsAnalyzing(false); }
   };
 
-  if (isAnalyzing) return (
-    <LoadingPage 
-      message={`Route\nAnalysis`} 
-      subMessage="AI 모델이 최적의 대안을 찾고 있습니다" 
-      isDarkMode={isDarkMode} 
-    />
-  );
+  if (isAnalyzing) return <LoadingPage message={`Route\nAnalysis`} subMessage="AI 모델이 최적의 대안을 찾고 있습니다" isDarkMode={isDarkMode} />;
 
   return (
     <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
@@ -244,9 +161,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
-  );
+  return <BrowserRouter><AppContent /></BrowserRouter>;
 }

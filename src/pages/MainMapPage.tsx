@@ -333,6 +333,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
       currentHistory.push({ id: `hist-${Date.now()}`, startPoint: finalStart.name, destination: finalDest.name, date: formattedDate });
       localStorage.setItem('search_history', JSON.stringify(currentHistory));
 
+      // 💡 여기서 mode(travelMode)가 상위 컴포넌트로 전달됩니다!
       onSearch({
         startPoint: finalStart.name, 
         destination: finalDest.name,
