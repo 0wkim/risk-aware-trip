@@ -25,16 +25,18 @@ async function requestPost(path: string, bodyData: any) {
 }
 
 export const api = {
-  predictBatch: async (data: { places: any[]; day: number; hour: number }) => {
+  predictBatch: async (data: { places: any[]; day: number; hour: number; mode?: 'walking' | 'car' | 'transit' }) => {
     return requestPost('/api/predict-batch', data);
   },
-  evaluateCourse: async (data: { waypoints: any[]; T_max: number; day: number; hour: number }) => {
+  // 💡 여기에 mode 키를 추가했습니다!
+  evaluateCourse: async (data: { waypoints: any[]; T_max: number; day: number; hour: number; mode?: 'walking' | 'car' | 'transit' }) => {
     return requestPost('/api/evaluate-course', data);
   },
   getAlternatives: async (data: { 
     failed_waypoint: any; 
     day: number; 
     hour: number; 
+    mode?: 'walking' | 'car' | 'transit';
     course_waypoints: any[]; 
     failed_index: number; 
     T_max: number; 
