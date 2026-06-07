@@ -6,7 +6,7 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "https://sunny-oakland-median-conduct.trycloudflare.com/api/:path*"
+      "destination": "https://hire-connector-kai-parks.trycloudflare.com/api/:path*"
     }
   ]
 }
