@@ -234,7 +234,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
       <div className={`order-2 md:order-1 w-full md:w-[400px] flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-[height] duration-500 ease-in-out rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 overflow-hidden ${isPanelExpanded ? 'h-[60vh] md:h-full' : 'h-[85px] md:h-full'} ${isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'}`}>
         <div className="shrink-0 w-full cursor-pointer touch-none" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={togglePanel}>
           <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-2 md:hidden" />
-          <header className="px-5 pb-3 md:p-6 flex items-center gap-3 md:gap-4 border-b border-inherit">
+          <header className={`px-5 pb-3 md:p-6 flex items-center gap-3 md:gap-4 border-b ${isDarkMode ? 'border-slate-700/50' : 'border-slate-100'}`}>
             <button onClick={(e) => { e.stopPropagation(); onBack(); }} className={`p-2 md:p-2.5 rounded-xl transition-all active:scale-90 ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}><ChevronLeft className="md:w-5 md:h-5 w-4 h-4" /></button>
             <div className="text-left flex-1"><h1 className={`text-base md:text-lg font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>분석 결과</h1><p className="text-[9px] md:text-[10px] font-black text-emerald-500 uppercase tracking-widest">Analysis Dashboard</p></div>
           </header>
