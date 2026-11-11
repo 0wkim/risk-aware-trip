@@ -9,9 +9,16 @@ interface LoginPageProps {
   isDarkMode: boolean;
 }
 
+const DEMO_ACCOUNT = {
+  email: 'test@kw.ac.kr',
+  password: 'test123!',
+  name: '시연 사용자',
+};
+
 const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // 서비스 시연 시 로그인 버튼만 눌러 바로 진입할 수 있도록 기본값을 제공합니다.
+  const [email, setEmail] = useState(DEMO_ACCOUNT.email);
+  const [password, setPassword] = useState(DEMO_ACCOUNT.password);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,9 +37,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitch, onLogin, isDarkMode }) 
 
     // 디버깅 및 개발 편의용 마스터 계정 허용 
     const isMasterAccount = email === 'seoyoung8939@gmail.com' && password === '1234';
+    const isDemoAccount = email === DEMO_ACCOUNT.email && password === DEMO_ACCOUNT.password;
 
-    if (user || isMasterAccount) {
-      const loggedInUser = user || { name: '최서영', email: 'seoyoung8939@gmail.com' };
+    if (user || isMasterAccount || isDemoAccount) {
+      const loggedInUser = user || (isDemoAccount
+        ? { name: DEMO_ACCOUNT.name, email: DEMO_ACCOUNT.email }
+        : { name: '최서영', email: 'seoyoung8939@gmail.com' });
       
       // 만료일 관리를 위한 로컬스토리지 세션 패키징
       const sessionData = {
