@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ArrowRight, Star, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle, Trash2, Calendar, Clock, Car, Train, Footprints, Navigation, Search } from 'lucide-react';
+import { MapPin, ArrowRight, Star, Plus, Minus, Coffee, Utensils, Landmark, HelpCircle, Trash2, Calendar, Clock, Car, Train, Footprints, Navigation, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import Maps from '../Maps/Maps';
 import TopBar from '../components/TopBar';
 
@@ -82,6 +82,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
   const [isAddingFav, setIsAddingFav] = useState(false);
   const [favSelectedPlace, setFavSelectedPlace] = useState<any>(null);
   const [selectedFavCategory, setSelectedFavCategory] = useState<'cafe' | 'restaurant' | 'spot' | 'other'>('cafe');
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
 
   // 💡 브라우저 Geolocation 및 카카오맵 Geocoder 연동 현재 위치 탐색 엔진
   const handleGetCurrentLocation = () => {
@@ -355,19 +356,24 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
     <div className="flex flex-col md:flex-row h-[100dvh] min-h-0 overflow-hidden md:h-screen animate-in fade-in duration-700">
       
       {/* 패널 영역 (모바일: 하단(바텀시트), 데스크탑: 좌측 고정) */}
-      <div className={`order-2 md:order-1 w-full md:w-[400px] h-[55dvh] shrink-0 min-h-0 md:h-full flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-all duration-500 rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
-        
-        {/* 모바일용 드래그 핸들 */}
-        <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-1 md:hidden shrink-0" />
+      <div className={`order-2 md:order-1 w-full md:w-[400px] shrink-0 min-h-0 md:h-full flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-[height] duration-500 ease-in-out rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 overflow-hidden ${isPanelCollapsed ? 'h-[76px]' : 'h-[55dvh]'} ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
 
         <header className="px-5 py-3 md:p-6 flex items-center justify-between md:border-b border-inherit shrink-0">
           <div className="flex items-center gap-2 text-emerald-500">
             <img src="/logo.svg" alt="ArriView Logo" className="w-5 h-5 md:w-6 md:h-6 object-contain drop-shadow-sm" />
             <h1 className="font-bold text-base md:text-lg tracking-tight">ArriView</h1>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsPanelCollapsed((previous) => !previous)}
+            aria-expanded={!isPanelCollapsed}
+            className={`md:hidden flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-black transition-all active:scale-95 ${isDarkMode ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600'}`}
+          >
+            {isPanelCollapsed ? <>분석 설정 <ChevronUp size={13} /></> : <>지도 보기 <ChevronDown size={13} /></>}
+          </button>
         </header>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y custom-scrollbar px-5 pb-5 md:p-6 flex flex-col gap-4 md:gap-5 text-left">
+        <div className={`flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y custom-scrollbar px-5 pb-5 md:p-6 flex flex-col gap-4 md:gap-5 text-left transition-opacity duration-200 ${isPanelCollapsed ? 'pointer-events-none opacity-0 md:pointer-events-auto md:opacity-100' : 'opacity-100'}`}>
           
           {/* 이동 수단 선택 세션 */}
           <div>
