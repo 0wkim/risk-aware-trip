@@ -148,7 +148,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
       bg: isDarkMode ? 'bg-rose-950/40 border-rose-500/30' : 'bg-rose-50 border-rose-100', 
       text: 'text-rose-500', 
       icon: <XCircle className="shrink-0 mt-0.5 text-rose-500 md:w-[22px] md:h-[22px] w-5 h-5" />, 
-      message: `혼잡 및 지연 가능성이 존재합니다 (성공률 ${successRate}%). 아래의 우회 대안 장소 이용을 권장합니다.` 
+      message: `혼잡 및 지연 가능성이 존재합니다.(성공률 ${successRate}%). 아래의 우회 대안 장소 이용을 권장합니다.`
     }
   }[verdict];
 
@@ -204,7 +204,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   const dashboardWidgets = (
     <div className="flex flex-col gap-3.5 w-full">
       <div className={`p-4 rounded-2xl shadow-lg md:shadow-2xl border backdrop-blur-md flex flex-col gap-2.5 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
-        <div className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] md:text-[11px] uppercase tracking-wider"><BarChart3 className="md:w-[13px] md:h-[13px] w-3 h-3" /> Time-Series Predict</div>
+        <div className="flex items-center gap-1.5 text-blue-500 font-black text-[10px] md:text-[11px] tracking-wider"><BarChart3 className="md:w-[13px] md:h-[13px] w-3 h-3" /> 시간대 별 예측 혼잡도</div>
         <div className="flex items-end justify-between h-16 md:h-20 w-full pt-4 px-1 border-b border-slate-500/10">
           {timeSeriesData.map((data, idx) => (
             <div key={idx} className="flex flex-col items-center flex-1 h-full justify-end group relative">
@@ -217,7 +217,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
       </div>
 
       <div className={`p-4 rounded-2xl shadow-lg md:shadow-2xl border backdrop-blur-md flex flex-col gap-3 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
-        <div className="flex items-center gap-1.5 text-indigo-500 font-black text-[10px] md:text-[11px] uppercase tracking-wider"><Network className="md:w-[13px] md:h-[13px] w-3 h-3" /> Topological Route Chain</div>
+        <div className="flex items-center gap-1.5 text-indigo-500 font-black text-[10px] md:text-[11px] tracking-wider"><Network className="md:w-[13px] md:h-[13px] w-3 h-3" /> 경로 구간 안내</div>
         <div className="flex flex-col gap-2.5 relative pl-0.5">
           <div className="absolute left-2.5 top-1.5 bottom-1.5 w-0.5 border-l border-dashed border-slate-500/20 z-0" />
           <div className="flex items-center gap-2 md:gap-2.5 relative z-10 text-[9px] md:text-[10px]">
@@ -268,7 +268,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                 </div>
                 <div className={`flex items-center gap-2 p-2 md:p-3 rounded-xl md:rounded-2xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/60'}`}><span className={`p-1.5 md:p-2 rounded-lg md:rounded-xl border flex items-center justify-center shrink-0 ${detectedVehicle.themeClass}`}>{detectedVehicle.icon}</span><div className="text-left"><span className="block text-[7px] md:text-[8px] font-black uppercase tracking-wider text-slate-400">AI 권장 수단</span><span className={`text-[11px] md:text-xs font-black ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{detectedVehicle.label}</span></div></div>
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-500/10 text-[10px] md:text-[11px]">
-                   <span className="px-1.5 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 text-[8px] md:text-[9px] font-black uppercase">가용 예산</span><span className="font-black text-slate-500 mr-0.5 md:mr-1">{maxHours}시간 {maxMinutes}분</span><span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[8px] md:text-[9px] font-black uppercase">성공률</span><span className="font-black text-emerald-500">{successRate}%</span>
+                   <span className="px-1.5 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 text-[8px] md:text-[9px] font-black uppercase">가용 시간</span><span className="font-black text-slate-500 mr-0.5 md:mr-1">{maxHours}시간 {maxMinutes}분</span><span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[8px] md:text-[9px] font-black uppercase">성공률</span><span className="font-black text-emerald-500">{successRate}%</span>
                 </div>
               </div>
             </div>
