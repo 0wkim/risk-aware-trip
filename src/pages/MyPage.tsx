@@ -248,7 +248,7 @@ const MyPage = ({
                   <div className={`grid ${isMinimalMode ? 'grid-cols-1' : 'grid-cols-2'} gap-4 md:gap-6 transition-all duration-500`}>
                     <StatCard label="총 검색 횟수" value={searchHistory.length.toString()} color="bg-blue-500" isDarkMode={isDarkMode} isMinimal={isMinimalMode} />
                     <div onClick={() => setShowFavoriteModal(true)} className="cursor-pointer group">
-                      <StatCard label="저장한 장소 (확인)" value={favorites.length.toString()} color="bg-rose-500" isDarkMode={isDarkMode} isMinimal={isMinimalMode} />
+                      <StatCard label="저장한 장소" value={favorites.length.toString()} color="bg-rose-500" isDarkMode={isDarkMode} isMinimal={isMinimalMode} />
                     </div>
                   </div>
 

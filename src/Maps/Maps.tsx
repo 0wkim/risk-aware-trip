@@ -15,6 +15,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
   const defaultLng = 126.97059787494679;
 
   const mapRef = useRef<kakao.maps.Map>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   
   const [mapCenter, setMapCenter] = useState({ 
     lat: startPlace?.lat || defaultLat, 
@@ -25,6 +26,28 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
   const [arrowPosition, setArrowPosition] = useState<{ lat: number; lng: number } | null>(null);
   
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // The result drawer changes the available map height on mobile. Kakao Map
+  // retains its old canvas size unless relayout is called, which left a blank
+  // area below the map after opening or closing the drawer.
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container || !window.ResizeObserver) return;
+
+    let frameId = 0;
+    const relayout = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => mapRef.current?.relayout());
+    };
+    const observer = new ResizeObserver(relayout);
+    observer.observe(container);
+    relayout();
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frameId);
+    };
+  }, []);
 
   const fullPath = useMemo(() => {
     if (!routeSegments || routeSegments.length === 0) {
@@ -124,7 +147,7 @@ const Maps = ({ startPlace, destPlace, alternatives = [], routeSegments = [] }: 
   }, [fullPath, startPlace, destPlace]);
 
   return (
-    <div className="w-full h-full relative">
+    <div ref={mapContainerRef} className="w-full h-full min-h-0 relative">
       <Map
         center={mapCenter}
         style={{ width: "100%", height: "100%" }}

@@ -51,6 +51,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
   const touchStartY = useRef(0);
   const touchEndY = useRef(0);
+  const suppressPanelClickUntil = useRef(0);
 
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.targetTouches[0].clientY;
@@ -63,11 +64,18 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
 
   const onTouchEnd = () => {
     const deltaY = touchEndY.current - touchStartY.current;
-    if (deltaY > 40) setIsPanelExpanded(false);
-    else if (deltaY < -40) setIsPanelExpanded(true);
+    if (Math.abs(deltaY) <= 40) return;
+
+    // A touch interaction also emits a click on mobile.  Without suppressing
+    // that click, the toggle below immediately undoes the swipe result.
+    suppressPanelClickUntil.current = Date.now() + 350;
+    setIsPanelExpanded(deltaY < 0);
   };
 
-  const togglePanel = () => setIsPanelExpanded(prev => !prev);
+  const togglePanel = () => {
+    if (Date.now() < suppressPanelClickUntil.current) return;
+    setIsPanelExpanded(prev => !prev);
+  };
 
   const isDataReady = useMemo(() => backendResult && Object.keys(backendResult).length > 0, [backendResult]);
 
@@ -230,8 +238,8 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
   );
 
   return (
-    <div className={`flex flex-col md:flex-row h-[100dvh] md:h-screen animate-in fade-in slide-in-from-right-10 duration-700 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-white'}`}>
-      <div className={`order-2 md:order-1 w-full md:w-[400px] flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-[height] duration-500 ease-in-out rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 overflow-hidden ${isPanelExpanded ? 'h-[60vh] md:h-full' : 'h-[85px] md:h-full'} ${isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'}`}>
+    <div className={`flex flex-col md:flex-row h-[100dvh] min-h-0 overflow-hidden md:h-screen animate-in fade-in slide-in-from-right-10 duration-700 ${isDarkMode ? 'bg-[#0F172A]' : 'bg-white'}`}>
+      <div className={`order-2 md:order-1 w-full md:w-[400px] shrink-0 min-h-0 flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-[height] duration-500 ease-in-out rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 overflow-hidden ${isPanelExpanded ? 'h-[60dvh] md:h-full' : 'h-[85px] md:h-full'} ${isDarkMode ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-slate-100'}`}>
         <div className="shrink-0 w-full cursor-pointer touch-none" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={togglePanel}>
           <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-2 md:hidden" />
           <header className={`px-5 pb-3 md:p-6 flex items-center gap-3 md:gap-4 border-b ${isDarkMode ? 'border-slate-700/50' : 'border-slate-100'}`}>
@@ -239,7 +247,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
             <div className="text-left flex-1"><h1 className={`text-base md:text-lg font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>분석 결과</h1><p className="text-[9px] md:text-[10px] font-black text-emerald-500 uppercase tracking-widest">Analysis Dashboard</p></div>
           </header>
         </div>
-        <div className={`flex-1 p-5 md:p-6 space-y-5 md:space-y-6 overflow-y-auto custom-scrollbar text-left transition-opacity duration-300 ${!isPanelExpanded ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+        <div className={`flex-1 min-h-0 p-5 md:p-6 space-y-5 md:space-y-6 overflow-y-auto overscroll-contain touch-pan-y custom-scrollbar text-left transition-opacity duration-300 ${!isPanelExpanded ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : 'opacity-100'}`}>
           <div className={`p-4 md:p-5 rounded-2xl md:rounded-3xl border shadow-lg transition-all duration-500 ${themeStyles.bg}`}>
             <div className="flex gap-2.5 md:gap-3">
               {themeStyles.icon}
@@ -290,9 +298,9 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
           <div className="md:hidden pt-4 pb-6 w-full">{dashboardWidgets}</div>
         </div>
       </div>
-      <div className="order-1 md:order-2 flex-1 relative bg-slate-200 overflow-hidden flex flex-col h-full z-10">
+      <div className="order-1 md:order-2 flex-1 min-h-0 relative bg-slate-200 overflow-hidden flex flex-col z-10">
         <div className="w-full z-20 shrink-0"><TopBar seoulData={seoulData} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} onGoToMyPage={onGoToMyPage} onLogout={onLogout} /></div>
-        <div className="flex-1 w-full relative z-10">
+        <div className="flex-1 min-h-0 w-full relative z-10">
           {!isDataReady ? (
             <div className={`w-full h-full flex flex-col items-center justify-center gap-3 ${isDarkMode ? 'bg-[#0F172A] text-slate-400' : 'bg-slate-100 text-slate-500'}`}><div className="w-8 h-8 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" /><span className="text-[11px] font-bold animate-pulse">경로 분석 및 지도 세팅 중...</span></div>
           ) : (

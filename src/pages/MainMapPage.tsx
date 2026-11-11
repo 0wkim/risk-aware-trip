@@ -72,10 +72,10 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
 
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
     const saved = localStorage.getItem('custom_favorites');
-    return saved ? JSON.parse(saved) : [
-      { id: 'fav-1', name: '강남역 스타벅스', address: '서울특별시 강남구 테헤란로 123', lat: 37.5012, lng: 127.0396, place_id: '12345', categories: ['cafe'], customCategory: 'cafe' },
-      { id: 'fav-2', name: '맥도날드 성수점', address: '서울특별시 성동구 성수이로 88', lat: 37.5445, lng: 127.0560, place_id: '67890', categories: ['restaurant'], customCategory: 'restaurant' }
-    ];
+    if (!saved) return [];
+
+    // 기존 배포본이 저장해 둔 초기 목데이터도 한 번만 정리합니다.
+    return JSON.parse(saved).filter((favorite: FavoriteItem) => !['fav-1', 'fav-2'].includes(favorite.id));
   });
 
   const [newFavName, setNewFavName] = useState('');
@@ -404,7 +404,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
             <div>
               <label className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-wildest mb-1.5 flex items-center gap-1"><Clock size={13} /> 출발 시각</label>
               <select value={simulatedHour} onChange={(e) => setSimulatedHour(Number(e.target.value))} className={`w-full p-2.5 md:p-3 rounded-xl md:rounded-2xl border font-bold text-xs outline-none ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                {Array.from({ length: 24 }).map((_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00 출발</option>)}
+                {Array.from({ length: 24 }).map((_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
               </select>
             </div>
           </div>

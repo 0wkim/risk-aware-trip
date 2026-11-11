@@ -147,7 +147,7 @@ function AppContent() {
   if (isAnalyzing) return <LoadingPage message={`Route\nAnalysis`} subMessage="AI 모델이 최적의 대안을 찾고 있습니다" isDarkMode={isDarkMode} />;
 
   return (
-    <div className={`App h-screen w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
+    <div className={`App h-[100dvh] min-h-[100dvh] w-full transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-900' : 'bg-[#F4F7F9]'}`}>
       <Routes>
         <Route path="/" element={<LandingPage onStart={() => navigate('/login')} seoulData={seoulData} />} />
         <Route path="/login" element={<LoginPage onSwitch={() => navigate('/signup')} onLogin={() => navigate('/mypage')} isDarkMode={isDarkMode} />} />

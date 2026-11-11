@@ -5,6 +5,13 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  background-color: #f8fafc;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
 }
 
 /* 기존 프로젝트의 강제 정렬 설정을 완전히 무력화 */
@@ -12,7 +19,7 @@
   all: unset !important;
   display: block !important;
   width: 100% !important;
-  min-height: 100vh !important;
+  min-height: 100dvh !important;
   background-color: #f8fafc !important;
   text-align: left !important;
 }
