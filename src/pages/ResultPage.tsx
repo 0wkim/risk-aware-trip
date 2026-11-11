@@ -270,7 +270,7 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 md:gap-3 text-[10px] md:text-[11px] font-bold text-slate-500"><span className="flex items-center gap-1"><Clock size={10} className="text-slate-400 shrink-0 md:w-[13px] md:h-[13px]" /> 이동 {Math.round(item.t_travel)}분 / 대기 {Math.round(item.t_wait)}분</span></div>
                       </div>
                     </div>
-                    <div onClick={(e) => { e.stopPropagation(); handleRerouteTarget(item); }} className={`px-2 py-1.5 md:px-2.5 md:py-1.5 rounded-md md:rounded-lg border text-[8px] md:text-[9px] font-black uppercase tracking-tight transition-all shrink-0 hover:scale-105 active:scale-95 ${detectedVehicle.themeClass}`}>선택</div>
+                    <div onClick={(e) => { e.stopPropagation(); handleRerouteTarget(item); }} className={`ml-3 md:ml-4 px-2 py-1.5 md:px-2.5 md:py-1.5 rounded-md md:rounded-lg border text-[8px] md:text-[9px] font-black uppercase tracking-tight transition-all shrink-0 hover:scale-105 active:scale-95 ${detectedVehicle.themeClass}`}>선택</div>
                   </div>
                 ))}
               </div>
