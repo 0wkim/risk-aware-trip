@@ -352,10 +352,10 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] md:h-screen animate-in fade-in duration-700">
+    <div className="flex flex-col md:flex-row h-[100dvh] min-h-0 overflow-hidden md:h-screen animate-in fade-in duration-700">
       
       {/* 패널 영역 (모바일: 하단(바텀시트), 데스크탑: 좌측 고정) */}
-      <div className={`order-2 md:order-1 w-full md:w-[400px] h-[55vh] md:h-full flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-all duration-500 rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
+      <div className={`order-2 md:order-1 w-full md:w-[400px] h-[55dvh] shrink-0 min-h-0 md:h-full flex flex-col border-t md:border-t-0 md:border-r z-30 md:z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] md:shadow-2xl transition-all duration-500 rounded-t-[2rem] md:rounded-none relative -mt-6 md:mt-0 ${isDarkMode ? 'bg-[#1E293B] border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
         
         {/* 모바일용 드래그 핸들 */}
         <div className="w-12 h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mx-auto mt-3 mb-1 md:hidden shrink-0" />
@@ -367,7 +367,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-5 md:p-6 flex flex-col gap-4 md:gap-5 text-left">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y custom-scrollbar px-5 pb-5 md:p-6 flex flex-col gap-4 md:gap-5 text-left">
           
           {/* 이동 수단 선택 세션 */}
           <div>
@@ -475,7 +475,7 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
             </div>
           </div>
 
-          <div className="mt-1 flex-1 flex flex-col min-h-[140px] md:min-h-[180px]">
+          <div className="mt-1 flex flex-col">
             <div className="flex items-center justify-between mb-2 md:mb-3 shrink-0">
               <div className="flex items-center gap-1.5 md:gap-2">
                 <Star size={14} className="text-yellow-500 fill-yellow-500 md:w-[15px] md:h-[15px]" />
@@ -547,6 +547,9 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
             )}
 
             <div className="space-y-2 md:space-y-2.5 overflow-y-auto max-h-[140px] md:max-h-[160px] pr-1 custom-scrollbar">
+              {favorites.length === 0 && !isAddingFav && (
+                <p className="py-2 text-center text-[10px] font-semibold text-slate-400">저장한 장소가 없습니다.</p>
+              )}
               {favorites.map(fav => (
                 <div key={fav.id} onClick={() => handleFavoriteClick(fav)} className={`group w-full flex items-center justify-between p-3 md:p-3.5 rounded-xl md:rounded-2xl border text-left cursor-pointer ${isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100'}`}>
                   <div className="flex items-center gap-2.5 md:gap-3.5 min-w-0 flex-1">
@@ -570,11 +573,11 @@ const MainMapPage = ({ onSearch, onGoToMyPage, onLogout, isDarkMode, toggleDarkM
       </div>
 
       {/* 지도 영역 (모바일: 상단, 데스크탑: 우측) */}
-      <div className="order-1 md:order-2 flex-1 relative bg-slate-200 overflow-hidden flex flex-col h-[45vh] md:h-full z-10">
+      <div className="order-1 md:order-2 flex-1 min-h-0 relative bg-slate-200 overflow-hidden flex flex-col h-[45dvh] md:h-full z-10">
         <div className="w-full z-20 shrink-0">
           <TopBar seoulData={seoulData} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} onGoToMyPage={onGoToMyPage} onLogout={onLogout} />
         </div>
-        <div className="flex-1 w-full relative z-10">
+        <div className="flex-1 min-h-0 w-full relative z-10">
           <Maps 
             startPlace={selectedStartPlace ? { lat: selectedStartPlace.lat, lng: selectedStartPlace.lng, name: startPoint } : null} 
             destPlace={selectedDestPlace ? { lat: selectedDestPlace.lat, lng: selectedDestPlace.lng, name: destination } : null} 
