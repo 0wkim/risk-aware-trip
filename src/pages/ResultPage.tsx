@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { 
   ChevronLeft, Clock, Navigation, CheckCircle2, XCircle,
   ArrowRight, Sparkles, X, Info,
-  Car, Train, Footprints, RefreshCw, BarChart3, Network
+  Car, Train, Footprints, RefreshCw, BarChart3
 } from 'lucide-react';
 import Maps from '../Maps/Maps';
 import TopBar from '../components/TopBar';
@@ -142,13 +142,13 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
       bg: isDarkMode ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-emerald-50 border-emerald-100', 
       text: 'text-emerald-500', 
       icon: <CheckCircle2 className="shrink-0 mt-0.5 text-emerald-500 animate-pulse md:w-[22px] md:h-[22px] w-5 h-5" />, 
-      message: `목적지 내에 원활하게 도착할 확률이 높습니다 (${successRate}%).\nAI가 검증을 완료했으니 기존 계획 그대로 실행하세요!` 
+      message: '목적지 내에 원활하게 도착할 확률이 높습니다.\nAI가 검증을 완료했으니 기존 계획 그대로 실행하세요!'
     },
     FAIL: { 
       bg: isDarkMode ? 'bg-rose-950/40 border-rose-500/30' : 'bg-rose-50 border-rose-100', 
       text: 'text-rose-500', 
       icon: <XCircle className="shrink-0 mt-0.5 text-rose-500 md:w-[22px] md:h-[22px] w-5 h-5" />, 
-      message: `혼잡 및 지연 가능성이 존재합니다.(성공률 ${successRate}%). 아래의 우회 대안 장소 이용을 권장합니다.`
+      message: '혼잡 및 지연 가능성이 존재합니다. 아래의 우회 대안 장소 이용을 권장합니다.'
     }
   }[verdict];
 
@@ -213,25 +213,6 @@ const ResultPage = ({ searchParams, backendResult, onBack, onGoToMyPage, onLogou
               <span className="text-[7px] md:text-[8px] text-slate-400 font-bold mt-1 md:mt-1.5 shrink-0 block">{data.time}</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      <div className={`p-4 rounded-2xl shadow-lg md:shadow-2xl border backdrop-blur-md flex flex-col gap-3 text-left ${isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-100 text-slate-800'}`}>
-        <div className="flex items-center gap-1.5 text-indigo-500 font-black text-[10px] md:text-[11px] tracking-wider"><Network className="md:w-[13px] md:h-[13px] w-3 h-3" /> 경로 구간 안내</div>
-        <div className="flex flex-col gap-2.5 relative pl-0.5">
-          <div className="absolute left-2.5 top-1.5 bottom-1.5 w-0.5 border-l border-dashed border-slate-500/20 z-0" />
-          <div className="flex items-center gap-2 md:gap-2.5 relative z-10 text-[9px] md:text-[10px]">
-            <div className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center text-[7px] md:text-[8px] font-black shrink-0">N1</div>
-            <div className="truncate"><span className="text-slate-400 text-[7px] md:text-[8px] block font-medium">START NODE</span><b className="font-bold text-inherit truncate max-w-[200px] md:max-w-[260px] block">{startPoint}</b></div>
-          </div>
-          <div className="flex items-center gap-2 md:gap-2.5 relative z-10 text-[9px] md:text-[10px]">
-            <div className="w-5 h-5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center text-[7px] md:text-[8px] font-black shrink-0">E1</div>
-            <div className="truncate"><span className="text-slate-400 text-[7px] md:text-[8px] block font-medium">TRANSIT LINK</span><span className="text-slate-400 font-bold">확률 밀도 함수 결합 추정 중</span></div>
-          </div>
-          <div className="flex items-center gap-2 md:gap-2.5 relative z-10 text-[9px] md:text-[10px]">
-            <div className="w-5 h-5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center text-[7px] md:text-[8px] font-black shrink-0">N2</div>
-            <div className="truncate"><span className="text-slate-400 text-[7px] md:text-[8px] block font-medium">END NODE</span><b className="font-bold text-inherit truncate max-w-[200px] md:max-w-[260px] block">{destination}</b></div>
-          </div>
         </div>
       </div>
     </div>
